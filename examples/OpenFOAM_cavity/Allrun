@@ -1,0 +1,75 @@
+#!/bin/bash
+cd ${0%/*} || exit 1    # Run from this directory
+
+# Source tutorial run functions
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+
+reset_options()
+{
+    echo "Resetting options."
+    optionset.py @nu default -q
+    optionset.py @solver ico -q
+    optionset.py @endTime 0.5 -q
+}
+
+reset_case()
+{
+    reset_options
+    ./Allclean
+}
+
+run_case()
+{
+    runApplication blockMesh
+    runApplication $(getApplication)
+}
+
+print_line()
+{
+    echo "############################################################"
+}
+
+request_keypress()
+{
+    echo
+    print_line
+    read -n 1 -s -r -p "Press any key to continue"
+    echo
+    print_line
+    echo
+}
+
+print_line
+reset_options
+echo "View help with optionset.py -h"
+echo "The currently set options can be viewed with \"optionset.py -a\""
+echo "Currently set options:"
+optionset.py -a
+request_keypress
+
+echo "View \"system/controlDict\" and \"constant/transportProperties\" to see
+how these custom options are set."
+echo "We will change the solver to simpleFoam using \"optionset.py @solver simple -v\""
+optionset.py @solver simple -v
+echo "\nNotice that the -v specifier allowed us to see the modified lines in
+\"system/controlDict\" and \"constant/transportProperties\""
+
+request_keypress
+echo "We will change the viscosity to that of water using \"optionset.py @nu water -v\""
+optionset.py @nu water -v
+request_keypress
+echo "Finally let's to the end time to 1.23 seconds \"optionset.py @endTime 1.23 -v\""
+optionset.py @endTime 1.23 -v
+
+request_keypress
+echo "Finally let's to the end time to 1.23 seconds \"optionset.py @endTime 1.23 -v\""
+
+request_keypress
+echo "To run the actual OpenFOAM case, first make sure OpenFOAM is installed."
+echo "Next, run the commands:
+    runApplication blockMesh
+    runApplication $(getApplication) "
+echo "Or, edit this run script and use the \"run_case\" function"
+#run_case # UNCOMMENT THIS TO RUN THE OPENFOAM CASE
+
+#------------------------------------------------------------------------------
