@@ -7,31 +7,26 @@ from setuptools import setup
 import glob
 import os
 import sys
-# To use a consistent encoding
-from codecs import open
-from os import path
 
-here = path.abspath(path.dirname(__file__))
+from src.optionset import __version__, __author__
 
 scriptlist = glob.glob(os.path.join('bin', '*.py'))
 
 sys.path.insert(0, "src")
-from src.optionset import versionString
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
     name='optionset',
-    version=versionString(),
+    version=__version__,
     packages=['optionset', ],
-    #    packages=find_packages('src'),
     package_dir={'':'src'},
-    description="Enable/disable user-defined options in text-based dictionaries",
+    description="Enable/disable user-predefined options in text-based dictionaries",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url=None,
-    author="Matthew C. Jones",
+    author=__author__,
     author_email="matt.c.jones.aoe@gmail.com",
     scripts=scriptlist,
     license="GPLv3",

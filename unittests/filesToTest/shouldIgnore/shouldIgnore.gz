@@ -1,0 +1,3 @@
+# .gz file
+This should be ignored # @shouldIgnoreGZ a
+#This also should be ignored # @shouldIgnoreGZ b

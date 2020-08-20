@@ -1,24 +1,11 @@
 #!/usr/bin/env python3
-# This program enables and disables commented options. Use -h to view help.
-#
-# Author: Matthew Jones
-# Email: weehikematt@yahoo.com
-#
-# To make this program executable anywhere, link it to the python directory
-# found through the command "which python"
+"""
+Enable/disable user-predefined options in text-based dictionaries.
+Use -h to view help.
 
-# TODO 2015-08-13: os.walk is slow for large amounts of files. any speedup?
-# TODO 2015-09-25: make it so I can have overlapping options
-# TODO 2016-01-14: have program check .data.cfg file for ignore dirs/files
-# TODO 2016-01-14: have program do something intelligent if no arguments input
-# TODO 2016-01-21: see potential bug in new snappyHexMeshDict with 'all' option
-#       Multiline, multi option lines not working properly
-# TODO 2016-01-21: explicitely turn a option off/on w/o effecting other options
-# TODO 2016-02-18: get ^op to work
-# TODO 2016-04-27: allow multiple input arguments? ./optionSet.py @op1 arg1 @op2 arg2
-# TODO 2016-04-28: have shared options where @op2 is the dominant in // @op1 set1 @op2 set2
-#   * The dominant option tells whether that line is commented or uncommented in -a
-# TODO 2016-04-28: bug where ='' on inside of comment wraps next line on change
+Author: Matthew Jones
+Email: weehikematt@yahoo.com
+"""
 
 ## Import files
 import argparse
@@ -38,12 +25,11 @@ START_TIME = time()
 
 ## Set up input argument parser
 DESCRIPTION= """
-This program manipulates files in the base directory and below to comment and
-un-comment specified lines of code.  In this way, code or in each file can be
-'activated' or 'deactivated' conveniently.  Before running the program the user
-must add special modifiers to the commented areas of each file to specify which 
-lines of each file will be effected.  For example, the OpenFOAM dictionary text 
-file 'system/controlDict' could be written as,
+This program enables and disables user-predefined options in text-based code
+and dictionary files in the base directory and below.  The user specifies the
+lines in the files that will either be enabled or disabled by adding macro
+commands as commented text.  For example, the OpenFOAM dictionary text file
+'system/controlDict' could be written as,
 
 application pimpleFoam // @simulation transient
 //application simpleFoam // @simulation steady
@@ -88,8 +74,9 @@ To change 'variable option' to 6.7 use, '{0} @varOption 6.7'. The file becomes,
 variable option = 6.7; // @varOption ='= (.*);'
 
 Using your favorite scripting language, it is convenient to glue this program 
-into more advanced option variation routines.
-""".format(__file__)
+into more advanced option variation routines to create advanced parameter
+sweeps and case studies.
+""".format(os.path.basename(__file__))
         
 parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -117,6 +104,7 @@ args = parser.parse_args()
 
 ## Set up logging
 BASENAME = os.path.basename(__file__)
+RUNCMD = BASENAME
 LOG_PATH = '.log.{}'.format(BASENAME)
 LOG_LEVEL = 'DEBUG' if args.debug else 'INFO'
 if os.path.exists(LOG_PATH):
@@ -124,13 +112,13 @@ if os.path.exists(LOG_PATH):
 logging.basicConfig(filename=LOG_PATH, level=LOG_LEVEL)
 
 ## Initialize global variables
-IGNORE_DIRS = {'processor*', '.git', '[0-9]*.[0-9][^a-z]', 
-        'triSurface', 'archive', '0', 'sets'}
-IGNORE_FILES = {BASENAME, 'log.{}'.format(BASENAME), 'log.*', '*.py', 
+IGNORE_DIRS = {'processor[0-9]*', '.git', '[0-9]', '[0-9][0-9]*', '[0-9].[0-9]*', 
+        'triSurface', 'archive', 'sets', 'log', 'logs'} # UNIX-based wild cards
+IGNORE_FILES = {BASENAME, LOG_PATH, '.*', 'log.*', '*.log', '*.py', 
         '*.gz', 'faces', 'neighbour', 'owner', 'points*', 'buildTestMatrix', 
-        '*.stl', '*.png', '*.jpg'}
+        '*.png', '*.jpg', '*.obj', '*.stl', '*.stp', '*.step', }
 MAX_FLINES = 9999 # maximum lines per file
-MAX_FSIZE_KB = 1000 # maximum file size, kilobytes
+MAX_FSIZE_KB = 100 # maximum file size, kilobytes
 
 # Regular expression frameworks
 ANY_COMMENT_IND = r'(?:[#%!]|//|--)' # comment indicators: # % // -- !
@@ -155,17 +143,17 @@ Incomplete input. Try:
     "{0} -h"                    to view help
     "{0} -a"                    to view available options
     "{0} -a <unix regex>"       to search options using a unix regex
-    "{0} <option> <setting>"    to set the <setting> of <option>'''.format(__file__)
+    "{0} <option> <setting>"    to set the <setting> of <option>'''.format(RUNCMD)
 INVALID_OPTION_MSG = '''InputError:
 Invalid option name. A preceding tag, such as '@' in '@option' is required, and
 the rest of the option must adhere to the following regular expression: {0}
 To view help try:
-    "{1} -h"'''.format(ANY_WORD, __file__)
+    "{1} -h"'''.format(ANY_WORD, RUNCMD)
 INVALID_SETTING_MSG = '''InputError:
 Invalid setting name. The setting name must adhere to the following regular 
 expression: {0}
 To view help try:
-    "{1} -h"'''.format(ANY_WORD, __file__)
+    "{1} -h"'''.format(ANY_WORD, RUNCMD)
 INVALID_VAR_REGEX_MSG = '''FormatError:
 Invalid 'variable setting' regular expression. The commented regular expression 
 must adhere to this form: %(anyVar)s
@@ -178,7 +166,7 @@ regex, use '\('.
 \r\nFile:{fileName}
 Line {lineNum}:{line}
 To view help try:
-    "%(thisFile)s -h"''' % {'anyVar':ANY_VAR, 'thisFile':__file__}
+    "%(runCmd)s -h"''' % {'anyVar':ANY_VAR, 'runCmd':RUNCMD}
 PRINT_AVAIL_DEF_HDR_MSG = '''Printing available options and settings,
 ('  inactive  ', '> active <', '? both ?', '= variable ='):'''
 INVALID_REGEX_GROUP_MSG = '''InvalidRegexGroupError: {specificProblem}.
