@@ -1,2 +1,2 @@
 # File with .txt extension
-This should be parsed # @validExtension txt
+#This should be parsed # @validExtension txt

@@ -1,2 +1,2 @@
 # File with .org extension
-This should be parsed # @validExtension org
+#This should be parsed # @validExtension org

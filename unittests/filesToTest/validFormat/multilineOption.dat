@@ -1,0 +1,20 @@
+Example of valid multiline comment
+
+#Valid comment # *@validFormat multiline
+#Lorem ipsum dolor sit amet, consectetur adipiscing elit
+#Pellentesque vitae condimentum nulla
+#Nulla blandit felis ut felis vehicula placerat
+#Vestibulum vitae enim lacinia, pellentesque eros in, maximus arcu
+#Aliquam erat volutpat
+#Integer laoreet lectus ut aliquam gravida
+#Proin ipsum velit, lobortis luctus ante et, volutpat fringilla quam
+#Quisque gravida, ligula ut fermentum faucibus, nunc urna ultricies arcu, ac dictum enim nisl ac urna
+#Donec vel ipsum in felis sodales tempus
+#Sed tincidunt, quam lobortis efficitur scelerisque, nisi est tempus elit, in iaculis ex mauris vitae sapien
+#Etiam aliquet turpis eros, nec hendrerit libero accumsan quis
+#Suspendisse scelerisque vestibulum consectetur
+#Lorem ipsum dolor sit amet, consectetur adipiscing elit
+#Phasellus accumsan odio blandit nisl finibus, at facilisis lacus congue
+#Pellentesque gravida odio sit amet euismod maximus
+#Maecenas quis accumsan erat, eu egestas dolor
+#Valid comment # *@validFormat multiline

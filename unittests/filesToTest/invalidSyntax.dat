@@ -1,3 +1,72 @@
 # File to demonstrate examples of invalid syntax
-This should be parsed # @validFileBaseDir a
-#This also should be parsed # @validFileBaseDir b
+
+This should not be parsed # @onlyOneOption ERROR
+
+This should not be parsed @notInComments ERROR
+This should not be parsed @notInComments ERROR_b
+
+This should not be parsed # noSymbols ERROR
+This should not be parsed # noSymbols ERROR_b
+
+This should not be parsed # @bad@SymbolPlacement ERROR
+This should not be parsed # @bad@SymbolPlacement ERROR_b
+This should not be parsed # bad@SymbolPlacement ERROR
+This should not be parsed # bad@SymbolPlacement ERROR_b
+This should not be parsed # badSymbolPlacement@ ERROR
+This should not be parsed # badSymbolPlacement@ ERROR_b
+
+This should not be parsed # @symbolInSetting @ERROR
+This should not be parsed # @symbolInSetting @ERROR_b
+This should not be parsed # @symbolInSetting ERR@OR
+This should not be parsed # @symbolInSetting ERR@OR_b
+This should not be parsed # @symbolInSetting ERROR@
+This should not be parsed # @symbolInSetting ERROR_b@
+This should not be parsed # @symbolInSetting `ERROR
+This should not be parsed # @symbolInSetting `ERROR_b
+This should not be parsed # @symbolInSetting ~ERROR
+This should not be parsed # @symbolInSetting ~ERROR_b
+This should not be parsed # @symbolInSetting !ERROR
+This should not be parsed # @symbolInSetting !ERROR_b
+This should not be parsed # @symbolInSetting #ERROR
+This should not be parsed # @symbolInSetting #ERROR_b
+This should not be parsed # @symbolInSetting ^ERROR
+This should not be parsed # @symbolInSetting ^ERROR_b
+This should not be parsed # @symbolInSetting &ERROR
+This should not be parsed # @symbolInSetting &ERROR_b
+This should not be parsed # @symbolInSetting *ERROR
+This should not be parsed # @symbolInSetting *ERROR_b
+This should not be parsed # @symbolInSetting (ERROR
+This should not be parsed # @symbolInSetting (ERROR_b
+This should not be parsed # @symbolInSetting )ERROR
+This should not be parsed # @symbolInSetting )ERROR_b
+This should not be parsed # @symbolInSetting [ERROR
+This should not be parsed # @symbolInSetting [ERROR_b
+This should not be parsed # @symbolInSetting ]ERROR
+This should not be parsed # @symbolInSetting ]ERROR_b
+This should not be parsed # @symbolInSetting {ERROR
+This should not be parsed # @symbolInSetting {ERROR_b
+This should not be parsed # @symbolInSetting }ERROR
+This should not be parsed # @symbolInSetting }ERROR_b
+This should not be parsed # @symbolInSetting |ERROR
+This should not be parsed # @symbolInSetting |ERROR_b
+This should not be parsed # @symbolInSetting \ERROR
+This should not be parsed # @symbolInSetting \ERROR_b
+This should not be parsed # @symbolInSetting :ERROR
+This should not be parsed # @symbolInSetting :ERROR_b
+This should not be parsed # @symbolInSetting ;ERROR
+This should not be parsed # @symbolInSetting ;ERROR_b
+This should not be parsed # @symbolInSetting <ERROR
+This should not be parsed # @symbolInSetting <ERROR_b
+This should not be parsed # @symbolInSetting >ERROR
+This should not be parsed # @symbolInSetting >ERROR_b
+This should not be parsed # @symbolInSetting /ERROR
+This should not be parsed # @symbolInSetting /ERROR_b
+This should not be parsed # @symbolInSetting ,ERROR
+This should not be parsed # @symbolInSetting ,ERROR_b
+
+This should not be parsed # @improperVarOp =ERROR
+This should not be parsed # @improperVarOp =ERROR_b
+This should not be parsed # @improperVarOp 'ERROR
+This should not be parsed # @improperVarOp 'ERROR_b
+This should not be parsed # @improperVarOp 'ERROR'
+This should not be parsed # @improperVarOp 'ERROR_b'
