@@ -1,0 +1,9 @@
+# File to demonstrate examples of valid syntax
+
+#    Sentence with 1`~!@$%^^&*()_+-={}[]:";'<>,./?\| odd symbols # @validFormat difficultLine
+#1`~!@$%^^&*()_+-={}[]:";'<>,./?\| Sentence with odd symbols # @validFormat difficultLine
+
+#Valid # 1`~!@$%^^&*()_+-={}[]:";'<>,./?\| blah @validFormat difficultComments word @fake op # word
+#Valid # word @validFormat difficultComments # 1`~!@$%^^&*()_+-={}[]:";'<>,./?\| $overlappedOption a
+
+Valid # $overlappedOption b

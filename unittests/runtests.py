@@ -22,15 +22,15 @@ def run_cmd(cmdStr):
     """Run a command and return the output"""
     subproc = subprocess.run(shlex.split(cmdStr), capture_output=True,
             check=True)
-    outStr = subproc.stdout.decode('UTF-8')
-    return outStr, subproc.returncode
+    outputStr = subproc.stdout.decode('UTF-8')
+    return outputStr, subproc.returncode
 
 
 def set_default_options():
     """Set default options"""
     defOptionStrs = ("@valid0Dir a", "@validExtension dat",
             "@validFileBaseDir a", "@validCommentType Bash",
-            "@validFormat difficultPlacement",)
+            "@validFormat difficultPlacement", "@variableOption 1e-5")
     for defOptionStr in defOptionStrs:
         _, _ = run_cmd(f"{RUNAPP} {defOptionStr}")
 
@@ -89,16 +89,32 @@ class TestValid(unittest.TestCase):
             reCommentType = re.compile(f".*{settingStr}.*")
             self.assertTrue(test_re(reCommentType, outputStr))
 
-    def test_format(self):
+    def test_valid_format(self):
         """Test proper format of options and settings"""
         outputStr, _ = run_cmd(f"{RUNAPP} -a @validFormat")
-        settingStr = ('difficultPlacement', 'multiline',)
+        settingStr = ('difficultPlacement', 'multiline', 'difficultLine',
+                'difficultComment',)
         for settingStr in settingStr:
             reFormat = re.compile(f".*{settingStr}.*")
             self.assertTrue(test_re(reFormat, outputStr))
+
+    def test_variable_options(self):
+        """Test variable option"""
+        varSettingStr = '1e-8'
+        reFormat = re.compile(f".*{varSettingStr}.*")
+
+        outputStrBefore, _ = run_cmd(f"{RUNAPP} -a @variableOption")
+        self.assertFalse(test_re(reFormat, outputStrBefore))
+
+        outputStrChange, _ = run_cmd(f"{RUNAPP} -v @variableOption {varSettingStr}")
+        self.assertTrue(test_re(reFormat, outputStrChange))
+
+        outputStrAfter, _ = run_cmd(f"{RUNAPP} -a @variableOption")
+        self.assertTrue(test_re(reFormat, outputStrAfter))
 
 
 
 if __name__ == '__main__':
     set_default_options()
     unittest.main()
+    set_default_options()
