@@ -118,7 +118,7 @@ IGNORE_FILES = {BASENAME, LOG_PATH, '.*', 'log.*', '*.log', '*.py',
         '*.gz', 'faces', 'neighbour', 'owner', 'points*', 'buildTestMatrix', 
         '*.png', '*.jpg', '*.obj', '*.stl', '*.stp', '*.step', }
 MAX_FLINES = 9999 # maximum lines per file
-MAX_FSIZE_KB = 100 # maximum file size, kilobytes
+MAX_FSIZE_KB = 10 # maximum file size, kilobytes
 
 # Regular expression frameworks
 ANY_COMMENT_IND = r'(?:[#%!]|//|--)' # comment indicators: # % // -- !

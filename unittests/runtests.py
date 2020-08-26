@@ -89,28 +89,28 @@ class TestValid(unittest.TestCase):
             reCommentType = re.compile(f".*{settingStr}.*")
             self.assertTrue(test_re(reCommentType, outputStr))
 
-    def test_valid_format(self):
-        """Test proper format of options and settings"""
-        outputStr, _ = run_cmd(f"{RUNAPP} -a @validFormat")
+    def test_valid_syntax(self):
+        """Test proper syntax of options and settings"""
+        outputStr, _ = run_cmd(f"{RUNAPP} -a @validSyntax")
         settingStr = ('difficultPlacement', 'multiline', 'difficultLine',
                 'difficultComment',)
         for settingStr in settingStr:
-            reFormat = re.compile(f".*{settingStr}.*")
-            self.assertTrue(test_re(reFormat, outputStr))
+            reSyntax = re.compile(f".*{settingStr}.*")
+            self.assertTrue(test_re(reSyntax, outputStr))
 
     def test_variable_options(self):
         """Test variable option"""
         varSettingStr = '1e-8'
-        reFormat = re.compile(f".*{varSettingStr}.*")
+        reSetting = re.compile(f".*{varSettingStr}.*")
 
         outputStrBefore, _ = run_cmd(f"{RUNAPP} -a @variableOption")
-        self.assertFalse(test_re(reFormat, outputStrBefore))
+        self.assertFalse(test_re(reSetting, outputStrBefore))
 
         outputStrChange, _ = run_cmd(f"{RUNAPP} -v @variableOption {varSettingStr}")
-        self.assertTrue(test_re(reFormat, outputStrChange))
+        self.assertTrue(test_re(reSetting, outputStrChange))
 
         outputStrAfter, _ = run_cmd(f"{RUNAPP} -a @variableOption")
-        self.assertTrue(test_re(reFormat, outputStrAfter))
+        self.assertTrue(test_re(reSetting, outputStrAfter))
 
 
 

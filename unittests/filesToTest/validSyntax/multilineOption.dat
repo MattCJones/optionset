@@ -1,6 +1,6 @@
 Example of valid multiline comment
 
-#Valid comment # *@validFormat multiline
+#Valid comment # *@validSyntax multiline
 #Lorem ipsum dolor sit amet, consectetur adipiscing elit
 #Pellentesque vitae condimentum nulla
 #Nulla blandit felis ut felis vehicula placerat
@@ -17,4 +17,4 @@ Example of valid multiline comment
 #Phasellus accumsan odio blandit nisl finibus, at facilisis lacus congue
 #Pellentesque gravida odio sit amet euismod maximus
 #Maecenas quis accumsan erat, eu egestas dolor
-#Valid comment # *@validFormat multiline
+#Valid comment # *@validSyntax multiline

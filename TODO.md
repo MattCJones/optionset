@@ -4,3 +4,4 @@
 * TODO 2020-08-16: allow for nested options (these should add or remove one comment if parent comment is disabled)
 * TODO 2020-08-16: allow for multiple stacked options @op 2 || @op3
 * TODO 2020-08-18: only read ascii utf8 encoded files
+* TODO 2020-08-21: add bash completion for options and settings
