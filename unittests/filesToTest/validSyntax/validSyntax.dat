@@ -7,3 +7,6 @@
 #Valid # word @validSyntax difficultComments # 1`~!@$%^^&*()_+-={}[]:";'<>,./?\| $overlappedOption a
 
 Valid # $overlappedOption b
+
+Valid multiple comment indicator # ~@$^&multiIndicator a
+Valid multiple comment indicator # ~@$^&multiIndicator b

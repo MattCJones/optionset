@@ -8,6 +8,7 @@ import subprocess
 import shlex
 
 RUNAPP = "../bin/optionset.py"  # run the application
+LOG_FILE = ".log.optionset.py"
 
 
 def test_re(regex, strToSearch):
@@ -84,17 +85,17 @@ class TestValid(unittest.TestCase):
     def test_comment_types(self):
         """Test various comment types"""
         outputStr, _ = run_cmd(f"{RUNAPP} -a @validCommentType")
-        settingStr = ('Bash', 'CPP', 'MATLAB', 'NML', 'custom',)
-        for settingStr in settingStr:
+        settingStrs = ('Bash', 'CPP', 'MATLAB', 'NML', 'custom',)
+        for settingStr in settingStrs:
             reCommentType = re.compile(f".*{settingStr}.*")
             self.assertTrue(test_re(reCommentType, outputStr))
 
     def test_valid_syntax(self):
         """Test proper syntax of options and settings"""
         outputStr, _ = run_cmd(f"{RUNAPP} -a @validSyntax")
-        settingStr = ('difficultPlacement', 'multiline', 'difficultLine',
+        settingStrs = ('difficultPlacement', 'multiline', 'difficultLine',
                 'difficultComment',)
-        for settingStr in settingStr:
+        for settingStr in settingStrs:
             reSyntax = re.compile(f".*{settingStr}.*")
             self.assertTrue(test_re(reSyntax, outputStr))
 
@@ -112,6 +113,37 @@ class TestValid(unittest.TestCase):
         outputStrAfter, _ = run_cmd(f"{RUNAPP} -a @variableOption")
         self.assertTrue(test_re(reSetting, outputStrAfter))
 
+    def test_multiple_indicator(self):
+        """Test multiple indicators in options"""
+        settingStr = r'~@$^&multiIndicator'
+        outputStr, _ = run_cmd(f"{RUNAPP} -a {settingStr}")
+        reSyntax = re.compile(r".*~@\$\^&multiIndicator.*")
+        self.assertTrue(test_re(reSyntax, outputStr))
+
+
+class TestRegression(unittest.TestCase):
+    """Regression test: show that output is unchanged in with new version"""
+    def setUp(self):
+        pass
+
+    def test_dotlog_output(self):
+        f"""Test that {LOG_FILE} remains unchanged for basic input"""
+        outputStr, _ = run_cmd(f"{RUNAPP} @none none")
+        with open(LOG_FILE, 'r') as file:
+            logStr = file.read()
+        dotLogReStr = r"""INFO:root:Executing main function
+INFO:root:Checking input options
+INFO:root:<tag><option> <setting> = @none none
+INFO:root:Generating valid files
+INFO:root:Valid files: \[.*\]
+INFO:root:Scrolling through files to set: @none none
+WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooLarge10kB.dat
+WARNING:root:Reason: File exceeds kB size limit of 10
+WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooManyLines.dat
+WARNING:root:Reason: File exceeds kB size limit of 10
+INFO:root:Finished in \d+.\d+ s"""
+        reRegressionMatch = re.compile(dotLogReStr)
+        self.assertTrue(test_re(reRegressionMatch, logStr))
 
 
 if __name__ == '__main__':
