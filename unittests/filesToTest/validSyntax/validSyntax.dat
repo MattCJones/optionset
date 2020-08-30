@@ -4,9 +4,10 @@
 #1`~!@$%^^&*()_+-={}[]:";'<>,./?\| Sentence with odd symbols # @validSyntax difficultLine
 
 #Valid # 1`~!@$%^^&*()_+-={}[]:";'<>,./?\| blah @validSyntax difficultComments word @fake op # word
-#Valid # word @validSyntax difficultComments # 1`~!@$%^^&*()_+-={}[]:";'<>,./?\| $overlappedOption a
+Valid # word @validSyntax difficultComments # 1`~!@$%^^&*()_+-={}[]:";'<>,./?\|
 
-Valid # $overlappedOption b
+#Valid multiple comment indicator # $test a
+Valid multiple comment indicator # $test b
 
-Valid multiple comment indicator # ~@$^&multiIndicator a
-Valid multiple comment indicator # ~@$^&multiIndicator b
+Valid multiple comment indicator # ~@$^&multipleTags a
+#Valid multiple comment indicator # ~@$^&multipleTags b

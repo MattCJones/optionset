@@ -129,7 +129,7 @@ ANY_VAR = r'\={quote}.+{quote}'.format(quote=r'[\'"]')
 ANY_SETTING = r'(?:{anyWord}|{anyVar})'.format(anyWord=ANY_WORD, anyVar=ANY_VAR)
 ANY_INPUT_SETTING = '(?: |{})+'.format(ANY_WORD) # words with spaces (using '')
 BRACKETS = r'[()<>\[\]]'
-ANY_TAG = f'(?:(?!\s|{ANY_COMMENT_IND}|{MULTI_TAG}|{ANY_WORD}|{BRACKETS}).)' # implicitely set
+ANY_TAG = f'(?:(?!\s|{ANY_COMMENT_IND}|{MULTI_TAG}|{ANY_WORD}|{BRACKETS}).)' # not these; implicitely set
 #ANY_TAG = r'[~`!@$^&\\\?\|]' # explicitely set
 WHOLE_COMMENT = (r'(?P<comInd>{comInd})'
     r'(?P<wholeCom>.*\s+{mtag}*{tag}+{option}\s+{setting}\s.*\n?)')
@@ -356,6 +356,7 @@ def process_file(validFile, inputOptions, F_getAvailable, allOptionsSettings, al
     # Prepare regular expressions
     formatVars = {'comInd':comInd, 'mtag':MULTI_TAG, 'tag':inputOptions.tag,
             'option':inputOptions.option, 'setting':ANY_SETTING}
+    #print("DEBUG", formatVars)
     comLineRe = re.compile(COMMENTED_LINE.format(**formatVars))
     unComLineRe = re.compile(UNCOMMENTED_LINE.format(**formatVars))
     tagOptionSettingRe = re.compile(ONLY_TAG_GROUP_SETTING.format(**formatVars))
@@ -527,16 +528,17 @@ def parse_and_check_input(args):
         # Check if option is formatted correctly
         checkTagOptionRe = re.compile(f"({ANY_TAG}+)({ANY_WORD})")
         with handle_errors(errTypes=(AttributeError), msg=INVALID_OPTION_MSG):
-            tag,option = checkTagOptionRe.search(args.option).groups()
-        return InputOptions(tag=tag, option=option, setting=setting)
+            tag, option = checkTagOptionRe.search(args.option).groups()
+        literalTag = ''.join([f'\{s}' for s in tag]) # read as literal symbols
+        return InputOptions(tag=literalTag, option=option, setting=setting)
 
 def main(args):
     """Main function. """
     logging.info("Executing main function")
     logging.info("Checking input options")
     inputOptions = parse_and_check_input(args)
-
-    logging.info(f"<tag><option> <setting> = {args.option} {args.setting}")
+    logging.info(f"<tag><option> <setting> = "
+            f"{inputOptions.tag}{inputOptions.option} {inputOptions.setting}")
     logging.info("Generating valid files")
     validFiles = list(gen_valid_files()) # can run as generator
     logging.info(f"Valid files: {validFiles}")

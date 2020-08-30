@@ -31,7 +31,9 @@ def set_default_options():
     """Set default options"""
     defOptionStrs = ("@valid0Dir a", "@validExtension dat",
             "@validFileBaseDir a", "@validCommentType Bash",
-            "@validFormat difficultPlacement", "@variableOption 1e-5")
+            "@validFormat difficultPlacement", "@variableOption 1e-5",
+            "~@\$\^&multipleTags a",)
+            #"~@@multipleTags a",)
     for defOptionStr in defOptionStrs:
         _, _ = run_cmd(f"{RUNAPP} {defOptionStr}")
 
@@ -113,11 +115,12 @@ class TestValid(unittest.TestCase):
         outputStrAfter, _ = run_cmd(f"{RUNAPP} -a @variableOption")
         self.assertTrue(test_re(reSetting, outputStrAfter))
 
-    def test_multiple_indicator(self):
-        """Test multiple indicators in options"""
-        settingStr = r'~@$^&multiIndicator'
+    def test_multiple_tags(self):
+        """Test multiple tags in options"""
+        settingStr = r'~@$^&multipleTags'
+        #settingStr = r'~@@multipleTags'
         outputStr, _ = run_cmd(f"{RUNAPP} -a {settingStr}")
-        reSyntax = re.compile(r".*~@\$\^&multiIndicator.*")
+        reSyntax = re.compile(f".*\~\@\$\^\&multipleTags.*")
         self.assertTrue(test_re(reSyntax, outputStr))
 
 
@@ -133,10 +136,10 @@ class TestRegression(unittest.TestCase):
             logStr = file.read()
         dotLogReStr = r"""INFO:root:Executing main function
 INFO:root:Checking input options
-INFO:root:<tag><option> <setting> = @none none
+INFO:root:<tag><option> <setting> = \\@none none
 INFO:root:Generating valid files
 INFO:root:Valid files: \[.*\]
-INFO:root:Scrolling through files to set: @none none
+INFO:root:Scrolling through files to set: \\@none none
 WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooLarge10kB.dat
 WARNING:root:Reason: File exceeds kB size limit of 10
 WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooManyLines.dat
