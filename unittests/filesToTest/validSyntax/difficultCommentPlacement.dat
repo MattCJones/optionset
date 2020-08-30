@@ -5,4 +5,4 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque vitae cond
 A = 4;
 
 # First comment string way down here
-Valid comment # @validSyntax difficultPlacement
+#Valid comment # @validSyntax difficultPlacement

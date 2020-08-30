@@ -114,23 +114,23 @@ logging.basicConfig(filename=LOG_PATH, level=LOG_LEVEL)
 
 ## Initialize global variables
 IGNORE_DIRS = {'processor[0-9]*', '.git', '[0-9]', '[0-9][0-9]*', '[0-9].[0-9]*', 
-        'triSurface', 'archive', 'sets', 'log', 'logs'} # UNIX-based wild cards
+        'triSurface', 'archive', 'sets', 'log', 'logs'}  # UNIX-based wild cards
 IGNORE_FILES = {BASENAME, LOG_PATH, '.*', 'log.*', '*.log', '*.py', 
         '*.gz', 'faces', 'neighbour', 'owner', 'points*', 'buildTestMatrix', 
         '*.png', '*.jpg', '*.obj', '*.stl', '*.stp', '*.step', }
-MAX_FLINES = 9999 # maximum lines per file
-MAX_FSIZE_KB = 10 # maximum file size, kilobytes
+MAX_FLINES = 9999  # maximum lines per file
+MAX_FSIZE_KB = 10  # maximum file size, kilobytes
 
 # Regular expression frameworks
-ANY_COMMENT_IND = r'(?:[#%!]|//|--)' # comment indicators: # % // -- !
-MULTI_TAG = r'[*]' # for multi-line commenting
+ANY_COMMENT_IND = r'(?:[#%!]|//|--)'  # comment indicators: # % // -- !
+MULTI_TAG = r'[*]'  # for multi-line commenting
 ANY_WORD = r'[\+a-zA-Z0-9._-]+'
 ANY_VAR = r'\={quote}.+{quote}'.format(quote=r'[\'"]')
 ANY_SETTING = r'(?:{anyWord}|{anyVar})'.format(anyWord=ANY_WORD, anyVar=ANY_VAR)
-ANY_INPUT_SETTING = '(?: |{})+'.format(ANY_WORD) # words with spaces (using '')
+ANY_INPUT_SETTING = '(?: |{})+'.format(ANY_WORD)  # words with spaces (using '')
 BRACKETS = r'[()<>\[\]]'
-ANY_TAG = f'(?:(?!\s|{ANY_COMMENT_IND}|{MULTI_TAG}|{ANY_WORD}|{BRACKETS}).)' # not these; implicitely set
-#ANY_TAG = r'[~`!@$^&\\\?\|]' # explicitely set
+ANY_TAG = f'(?:(?!\s|{ANY_COMMENT_IND}|{MULTI_TAG}|{ANY_WORD}|{BRACKETS}).)'  # not these; implicitely set
+#ANY_TAG = r'[~`!@$^&\\\?\|]'  # explicitely set
 WHOLE_COMMENT = (r'(?P<comInd>{comInd})'
     r'(?P<wholeCom>.*\s+{mtag}*{tag}+{option}\s+{setting}\s.*\n?)')
 UNCOMMENTED_LINE = r'(?P<nonCom>^\s*(?:(?!{comInd}).)+)' + WHOLE_COMMENT
@@ -200,6 +200,8 @@ def print_available(db, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_MSG):
                 leftStr, rightStr = '>', '<'
             elif subItem[1] is False:
                 leftStr, rightStr = ' ', ' '
+            elif subItem[1] is None:
+                leftStr, rightStr = ' ', ' '
             elif subItem[1] is not None:
                 leftStr, rightStr = subItem[1], subItem[1]
             else:
@@ -244,7 +246,7 @@ def comment(line, comInd, lineNum):
     line = comInd + line
     return line
 
-def check_number_groups(reStr):
+def check_varop_groups(reStr):
     """Calculate the number of regex groups designated by (). """
     allGroups = re.findall(r'([^\\]\(.*?[^\\]\))', reStr)
     if allGroups is None:
@@ -256,7 +258,7 @@ def check_number_groups(reStr):
             specificProblem='More than one regex group \'()\' found'))
         raise AttributeError
     else:
-        return(len(allGroups))
+        return len(allGroups)
 
 def add_left_right_groups(inLineRe):
     """Add left and right groups to regex.
@@ -306,7 +308,7 @@ def line_count(fileName, lineLimit):
         for line in yield_utf8(file):
             lineCount += 1
             if lineCount > lineLimit:
-                return lineCount + 1 # return line limit +1 if line-count exheeds
+                return lineCount + 1  # return line limit +1 if line-count exheeds
     return lineCount
 
 def get_comment_indicator(fileName):
@@ -322,14 +324,15 @@ def get_comment_indicator(fileName):
         formatVars = {'comInd':ANY_COMMENT_IND, 'mtag':MULTI_TAG, 'tag':ANY_TAG,
                 'option':ANY_WORD, 'setting':ANY_SETTING}
         unComLineRe = re.compile(UNCOMMENTED_LINE.format(**formatVars))
-        file.seek(0) # restart file
+        file.seek(0)  # restart file
         for line in yield_utf8(file):
             searchUnComLine = unComLineRe.search(line)
             if searchUnComLine:
                 return searchUnComLine.group('comInd')
 
 
-def process_file(validFile, inputOptions, F_getAvailable, allOptionsSettings, allVariableOptions):
+def process_file(validFile, inputOptions, F_getAvailable, allOptionsSettings,
+        allVariableOptions):
     """Process individual file. 
         Update allOptionsSettings and allVariableOptions
         Return if changes have been made or not"""
@@ -374,7 +377,7 @@ def process_file(validFile, inputOptions, F_getAvailable, allOptionsSettings, al
             # Get whole commented part of line
             wholeCom = ''
             fFlags.F_commented = None
-            if searchCom: # must search for commented before uncommented
+            if searchCom:  # must search for commented before uncommented
                 nonCom, wholeCom = searchCom.group('nonCom', 'wholeCom')
                 fFlags.F_commented = True
             elif searchUnCom:
@@ -386,7 +389,7 @@ def process_file(validFile, inputOptions, F_getAvailable, allOptionsSettings, al
                     newLine = un_comment(line, comInd, lineNum)
                 else:
                     newLine = comment(line, comInd, lineNum)
-                newLines[idx] = newLine # redundant
+                newLines[idx] = newLine  # redundant
                 fFlags.F_fileModified = True
             else:
                 continue
@@ -394,30 +397,38 @@ def process_file(validFile, inputOptions, F_getAvailable, allOptionsSettings, al
             # Parse commented part of line
             varErrMsg = INVALID_VAR_REGEX_MSG.format(fileName=validFile,
                     lineNum=lineNum, line=line)
-            for isearch in tagOptionSettingRe.finditer(wholeCom):
-                mtag, tag, option, setting = isearch.groups()
+            allReMatches = tagOptionSettingRe.findall(wholeCom)
+            #NMatches = len(allReMatches)
+            #for reMatch in tagOptionSettingRe.finditer(wholeCom):
+                #mtag, tag, option, setting = reMatch.groups()
+            inlineOpCount = defaultdict(lambda: 0)
+            for mtag, tag, option, setting in allReMatches:
+                inlineOpCount[tag+option] += 1  # count occurances of option
+            for mtag, tag, option, setting in allReMatches:
                 logging.debug((f"\tMATCH com({fFlags.F_commented}) "
                         "[{idx}]:{comInd}:{tag}:{option}:{setting}"))
-                if F_getAvailable:
+                if F_getAvailable:  # building database of available options
                     # Determine if option is enabled/disabled simultaneously
-                    # TODO 2015-08-13: redundant code: fix
                     if re.search(ANY_VAR, setting) and not fFlags.F_commented: 
                         # Attribute handles regex fail. Index handles .group() fail
                         with handle_errors(errTypes=(AttributeError, IndexError), msg=varErrMsg):
                             #TODO 2015-08-16: handle sre_constants.error for unbalanced parentheses
-                            inLineRe = setting[2:-1] # remove surrounding =''
-                            check_number_groups(inLineRe)
+                            inLineRe = setting[2:-1]  # remove surrounding =''
+                            check_varop_groups(inLineRe)
                             strToReplace = re.search(inLineRe, nonCom).group(1)
                         allVariableOptions[tag+option][strToReplace] = '='
                     elif allOptionsSettings[tag+option][setting] is None:
-                        allOptionsSettings[tag+option][setting] = (not fFlags.F_commented)
+                        if inlineOpCount[tag+option] > 1:
+                            allOptionsSettings[tag+option][setting] = None
+                        else:
+                            allOptionsSettings[tag+option][setting] = (not fFlags.F_commented)
                     elif allOptionsSettings[tag+option][setting] != (not fFlags.F_commented):
-                        allOptionsSettings[tag+option][setting] = '?'
-                else:
+                        allOptionsSettings[tag+option][setting] = '?'  # ambiguous
+                else: # modifying desired option
                     if re.search(ANY_VAR, setting) and not fFlags.F_commented:
                         with handle_errors(errTypes=AttributeError, msg=varErrMsg):
-                            inLineRe = setting[2:-1] # remove surrounding =''
-                            check_number_groups(inLineRe)
+                            inLineRe = setting[2:-1]  # remove surrounding =''
+                            check_varop_groups(inLineRe)
                             strToReplace = re.search(inLineRe, nonCom).group(1)
                         replaceStr = inputOptions.setting
                         if replaceStr == strToReplace:
@@ -483,7 +494,7 @@ def fn_compare(globSet, compareArray):
         for c in compareArray:
             if fnmatch(c, g):
                 return True
-    else: # no break
+    else:  # no break
         return False
 
 
@@ -529,7 +540,7 @@ def parse_and_check_input(args):
         checkTagOptionRe = re.compile(f"({ANY_TAG}+)({ANY_WORD})")
         with handle_errors(errTypes=(AttributeError), msg=INVALID_OPTION_MSG):
             tag, option = checkTagOptionRe.search(args.option).groups()
-        literalTag = ''.join([f'\{s}' for s in tag]) # read as literal symbols
+        literalTag = ''.join([f'\{s}' for s in tag])  # read as literal symbols
         return InputOptions(tag=literalTag, option=option, setting=setting)
 
 def main(args):
@@ -540,7 +551,7 @@ def main(args):
     logging.info(f"<tag><option> <setting> = "
             f"{inputOptions.tag}{inputOptions.option} {inputOptions.setting}")
     logging.info("Generating valid files")
-    validFiles = list(gen_valid_files()) # can run as generator
+    validFiles = list(gen_valid_files())  # can run as generator
     logging.info(f"Valid files: {validFiles}")
     if args.available:
         tagsOptionsSettings, varOptions = scroll_through_files(validFiles,

@@ -6,20 +6,26 @@ Code here for just a # @overlappingOption a
 #Code here for just b # @overlappingOption b
 #Code here for just c # @overlappingOption c
 
+Code here for options a and b # @overlappingOptionB a @overlappingOptionB b
+#Code here for c # @overlappingOptionB c
+
+
 ############################################################
 
-Code here for # *@overlappingMultiline a @overlappingMultiline b
-multiline
-options a and b # *@overlappingMultiline a *@overlappingMultiline b
+#Code here for # *@overlappingMultiline a *@overlappingMultiline b
+#multilines a and b 1
+#multilines a and b 2
+#multilines a and b 3
+#options a and b # *@overlappingMultiline a *@overlappingMultiline b
 
-Code here for # *@overlappingMultiline a
-just multiline
-options a # *@overlappingMultiline a
+#Code here for # *@overlappingMultiline a
+#just multiline a
+#options a # *@overlappingMultiline a
 
-# Code here for # *@overlappingMultiline b
-# just multiline
-# options b # *@overlappingMultiline b
+#Code here for # *@overlappingMultiline b
+#just multiline b
+#options b # *@overlappingMultiline b
 
-# Code here for # *@overlappingMultiline c
-# just multiline
-# options c # *@overlappingMultiline c
+Code here for # *@overlappingMultiline c
+just multiline c
+options c # *@overlappingMultiline c

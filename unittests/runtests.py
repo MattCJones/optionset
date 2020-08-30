@@ -6,6 +6,7 @@ import unittest
 import re
 import subprocess
 import shlex
+import time
 
 RUNAPP = "../bin/optionset.py"  # run the application
 LOG_FILE = ".log.optionset.py"
@@ -32,17 +33,35 @@ def set_default_options():
     defOptionStrs = ("@valid0Dir a", "@validExtension dat",
             "@validFileBaseDir a", "@validCommentType Bash",
             "@validFormat difficultPlacement", "@variableOption 1e-5",
-            "~@\$\^&multipleTags a",)
-            #"~@@multipleTags a",)
+            "@validSyntax difficultComments", "~@\$\^&multipleTags a",
+            "@multiFile singleLine",)
     for defOptionStr in defOptionStrs:
         _, _ = run_cmd(f"{RUNAPP} {defOptionStr}")
 
 
 class TestIO(unittest.TestCase):
-    """Test input and output"""
+    """Test program through input and output"""
+
     def setUp(self):
+        """Run before tests"""
         pass
 
+    def tearDown(self):
+        """Run after tests"""
+        pass
+
+    @classmethod
+    def setUpClass(cls):
+        print("Resetting options")
+        set_default_options()
+
+    @classmethod
+    def tearDownClass(cls):
+        print("\nResetting options")
+        set_default_options()
+    ############################################################
+    # Test basic
+    ############################################################
     def test_basic_io(self):
         """Test basic input and output"""
         reHasInputErr = re.compile(".*InputError.*")
@@ -67,23 +86,18 @@ class TestIO(unittest.TestCase):
             reHasExtension = re.compile(f".*{settingStr}.*")
             self.assertTrue(test_re(reHasExtension, outputStr))
 
-
-class TestInvalid(unittest.TestCase):
-    """Test invalid options"""
-    def setUp(self):
-        pass
-
+    ############################################################
+    # Test invalid format
+    ############################################################
     def test_invalid(self):
         """Test invalid files and directories"""
         reInvalid = re.compile(".*ERROR.*")
         outputStr, _ = run_cmd(f"{RUNAPP} -a")
         self.assertFalse(test_re(reInvalid, outputStr))
 
-class TestValid(unittest.TestCase):
-    """Test valid options"""
-    def setUp(self):
-        pass
-
+    ############################################################
+    # Test valid format
+    ############################################################
     def test_comment_types(self):
         """Test various comment types"""
         outputStr, _ = run_cmd(f"{RUNAPP} -a @validCommentType")
@@ -123,12 +137,21 @@ class TestValid(unittest.TestCase):
         reSyntax = re.compile(f".*\~\@\$\^\&multipleTags.*")
         self.assertTrue(test_re(reSyntax, outputStr))
 
+    def test_multiple_files(self):
+        """Test options placed in multiple files"""
+        settingStr = r'@multiFile'
 
-class TestRegression(unittest.TestCase):
-    """Regression test: show that output is unchanged in with new version"""
-    def setUp(self):
-        pass
+        outputStr, _ = run_cmd(f"{RUNAPP} {settingStr} multiLine -v")
+        reMultiFileMultiLine = re.compile(f".*multiLine.*")
+        self.assertTrue(test_re(reMultiFileMultiLine, outputStr))
 
+        outputStr, _ = run_cmd(f"{RUNAPP} {settingStr} singleLine -v")
+        reMultiFileSingleLine = re.compile(f".*singleLine.*")
+        self.assertTrue(test_re(reMultiFileSingleLine, outputStr))
+
+    ############################################################
+    # Regression test: show that output is unchanged in with new version
+    ############################################################
     def test_dotlog_output(self):
         f"""Test that {LOG_FILE} remains unchanged for basic input"""
         outputStr, _ = run_cmd(f"{RUNAPP} @none none")
@@ -150,6 +173,4 @@ INFO:root:Finished in \d+.\d+ s"""
 
 
 if __name__ == '__main__':
-    set_default_options()
     unittest.main()
-    set_default_options()
