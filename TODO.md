@@ -5,4 +5,3 @@
 * TODO 2020-08-16: allow for multiple stacked options @op 2 || @op3
 * TODO 2020-08-18: only read ascii utf8 encoded files
 * TODO 2020-08-21: add bash completion for options and settings
-* TODO 2020-08-30: fix bug where overlapping multiline will not comment a and b when c is set

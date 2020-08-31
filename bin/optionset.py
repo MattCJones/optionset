@@ -178,12 +178,13 @@ Use '()' to surround only the variable setting group in the commented regular ex
 class FileFlags:
     """Stores flags for line-by-line commenting features. """
     def __init__(self, F_fileModified=False, F_commented=None,
-            F_multiLineActive=False, F_multiCommented=None):
+            F_multiLineActive=False, F_multiCommented=None, F_freezeChanges=False):
         """Initialize flags. """
         self.F_fileModified = F_fileModified
         self.F_commented = F_commented
         self.F_multiLineActive = F_multiLineActive
         self.F_multiCommented = F_multiCommented
+        self.F_freezeChanges = F_freezeChanges
         
 ## Define utility functions
 def print_available(db, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_MSG):
@@ -402,9 +403,16 @@ def process_file(validFile, inputOptions, F_getAvailable, allOptionsSettings,
             #for reMatch in tagOptionSettingRe.finditer(wholeCom):
                 #mtag, tag, option, setting = reMatch.groups()
             inlineOpCount = defaultdict(lambda: 0)
+            inlineSettingMatch = defaultdict(lambda: False)
             for mtag, tag, option, setting in allReMatches:
                 inlineOpCount[tag+option] += 1  # count occurances of option
+                if setting == inputOptions.setting:
+                    inlineSettingMatch[tag+option] = True
+            F_mtagset = False
+            fFlags.F_freezeChanges = False
             for mtag, tag, option, setting in allReMatches:
+                if fFlags.F_freezeChanges:
+                    continue
                 logging.debug((f"\tMATCH com({fFlags.F_commented}) "
                         "[{idx}]:{comInd}:{tag}:{option}:{setting}"))
                 if F_getAvailable:  # building database of available options
@@ -438,16 +446,29 @@ def process_file(validFile, inputOptions, F_getAvailable, allOptionsSettings,
                                 newLines[idx] = set_var_option(line, comInd, lineNum,
                                         replaceStr, inLineRe, strToReplace, nonCom, wholeCom)
                             fFlags.F_fileModified = True
-                    elif setting == inputOptions.setting and fFlags.F_commented:
-                        newLines[idx] = un_comment(line, comInd, lineNum)
-                        fFlags.F_fileModified = True
-                        fFlags = multi_line_logic(mtag, fFlags)
-                    elif setting != inputOptions.setting and not fFlags.F_commented:
-                        newLines[idx] = comment(line, comInd, lineNum)
-                        fFlags.F_fileModified = True
-                        fFlags = multi_line_logic(mtag, fFlags)
+                    elif fFlags.F_commented:  # commented line
+                        if setting == inputOptions.setting:
+                            newLines[idx] = un_comment(line, comInd, lineNum)
+                            fFlags.F_fileModified = True
+                            fFlags = multi_line_logic(mtag, fFlags)
+                        else:
+                            pass
+                    elif not fFlags.F_commented:  # uncommented line
+                        #if setting != inputOptions.setting:  # setting mismatch
+                        if not inlineSettingMatch[tag+option]:  # not 1 match in line
+                            newLines[idx] = comment(line, comInd, lineNum)
+                            fFlags.F_fileModified = True
+                            #fFlags = multi_line_logic(mtag, fFlags)
+                            if mtag and not fFlags.F_multiLineActive:
+                                fFlags.F_multiLineActive = True
+                                fFlags.F_multiCommented = False
+                                fFlags.F_freezeChanges = True
+                            elif mtag and fFlags.F_multiLineActive:
+                                fFlags.F_multiLineActive = False
+                                fFlags.F_multiCommented = None
+                                fFlags.F_freezeChanges = True
                     else:
-                        continue
+                        pass
 
     # Write file
     if fFlags.F_fileModified:
