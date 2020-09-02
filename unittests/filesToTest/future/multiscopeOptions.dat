@@ -1,1 +1,16 @@
 # File to demonstrate use of multi-scope options
+
+Starting in level 0
+Lvl 0 # @multiScopeL0 a
+#Lvl 0 # *@multiScopeL0 b
+#    Entering level 1
+#    Lvl 1 # @multiScopeL1 a
+#    Lvl 1 # *@multiScopeL1 b
+#        Entering level 2
+#        Lvl 2 # @multiScopeL2 a
+#        Lvl 2 # *@multiScopeL2 b
+#            Entering level 3
+#        Lvl 2 # *@multiScopeL2 b
+#    Lvl 1 # *@multiScopeL1 b
+#Lvl 0 # *@multiScopeL0 b
+Ending in level 0
