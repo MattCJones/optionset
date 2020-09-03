@@ -1,3 +1,3 @@
 # File to demonstrate variable option
 
-change this importantVariable = 1e-5; # @variableOption ='= (.*);'
+Change this importantVariable = 1e-5; # @variableOption ='= (.*);'

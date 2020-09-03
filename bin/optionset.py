@@ -84,10 +84,10 @@ parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=DESCRIPTION)
 parser.add_argument(
-        'option', metavar='option', nargs='?', type=str, default=None,
+        'option', metavar='option', nargs='?', type=str, default="",
         help='\'option\' name')
 parser.add_argument(
-        'setting', metavar='setting', nargs='?', type=str, default=None,
+        'setting', metavar='setting', nargs='?', type=str, default="",
         help='\'setting\' for given \'option\'')
 parser.add_argument(
         '-a', '--available', dest='available', default=False, action='store_true',
@@ -126,8 +126,8 @@ ANY_COMMENT_IND = r'(?:[#%!]|//|--)'  # comment indicators: # % // -- !
 MULTI_TAG = r'[*]'  # for multi-line commenting
 ANY_WORD = r'[\+a-zA-Z0-9._-]+'
 ANY_OPTION = ANY_WORD
-ANY_VAR = r'\={quote}.+{quote}'.format(quote=r'[\'"]')
-ANY_SETTING = r'(?:{anyWord}|{anyVar})'.format(anyWord=ANY_WORD, anyVar=ANY_VAR)
+ANY_VAR_SETTING = r'\={quote}.+{quote}'.format(quote=r'[\'"]')
+ANY_SETTING = r'(?:{anyWord}|{anyVar})'.format(anyWord=ANY_WORD, anyVar=ANY_VAR_SETTING)
 VALID_INPUT_SETTING = '(?: |{})+'.format(ANY_WORD)  # words with spaces (using '')
 BRACKETS = r'[()<>\[\]]'
 ANY_TAG = f'(?:(?!\s|{ANY_COMMENT_IND}|{MULTI_TAG}|{ANY_WORD}|{BRACKETS}).)'  # not these; implicitely set
@@ -136,9 +136,11 @@ WHOLE_COMMENT = (r'(?P<comInd>{comInd})'
     r'(?P<wholeCom>.*\s+{mtag}*{tag}+{option}\s+{setting}\s.*\n?)')
 #UNCOMMENTED_LINE = r'(?P<nonCom>^\s*(?:(?!{comInd}).)+)' + WHOLE_COMMENT
 #COMMENTED_LINE = r'(?P<nonCom>^\s*{comInd}(?:(?!{comInd}).)+)' + WHOLE_COMMENT
-UNCOMMENTED_LINE = r'^{scopedComInds}(?P<nonCom>\s*(?:(?!{comInd}).)+)' + WHOLE_COMMENT
-COMMENTED_LINE = r'^{scopedComInds}(?P<nonCom>\s*{comInd}(?:(?!{comInd}).)+)' + WHOLE_COMMENT
+UNCOMMENTED_LINE = r'^{nestedComInds}(?P<nonCom>\s*(?:(?!{comInd}).)+)' + WHOLE_COMMENT
+COMMENTED_LINE = r'^{nestedComInds}(?P<nonCom>\s*{comInd}(?:(?!{comInd}).)+)' + WHOLE_COMMENT
 ONLY_TAG_GROUP_SETTING = r'({mtag}*)({tag}+)({option})\s+({setting})\s'
+GENERIC_RE_VARS = {'comInd':ANY_COMMENT_IND, 'mtag':MULTI_TAG, 'tag':ANY_TAG,
+        'option':ANY_OPTION, 'setting':ANY_SETTING, 'nestedComInds':''}
 
 # Error messages
 INCOMPLETE_INPUT_MSG = f'''InputError:
@@ -169,7 +171,7 @@ regex, use '\('.
 \r\nFile:{fileName}
 Line {lineNum}:{line}
 To view help try:
-    "%(runCmd)s -h"''' % {'anyVar':ANY_VAR, 'runCmd':RUNCMD}
+    "%(runCmd)s -h"''' % {'anyVar':ANY_VAR_SETTING, 'runCmd':RUNCMD}
 PRINT_AVAIL_DEF_HDR_MSG = '''Printing available options and settings,
 ('  inactive  ', '> active <', '? both ?', '= variable ='):'''
 INVALID_REGEX_GROUP_MSG = '''InvalidRegexGroupError: {specificProblem}.
@@ -182,14 +184,14 @@ class FileFlags:
     """Stores flags for line-by-line commenting features. """
     def __init__(self, F_fileModified=False, F_commented=None,
             F_multiLineActive=False, F_multiCommented=None,
-            F_freezeChanges=False, scopeLvl=0):
+            F_freezeChanges=False, nestedLvl=0):
         """Initialize flags. """
         self.F_fileModified = F_fileModified
         self.F_commented = F_commented
         self.F_multiLineActive = F_multiLineActive
         self.F_multiCommented = F_multiCommented
         self.F_freezeChanges = F_freezeChanges
-        self.scopeLvl = scopeLvl
+        self.nestedLvl = nestedLvl
         
 ## Define utility functions
 def print_available(db, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_MSG):
@@ -328,10 +330,7 @@ def get_comment_indicator(fileName):
                 return searchComLine.group(1)
 
         logging.debug('Comment not found at start of line. Searching in-line.')
-        formatVars = {'comInd':ANY_COMMENT_IND, 'mtag':MULTI_TAG, 'tag':ANY_TAG,
-                'option':ANY_WORD, 'setting':ANY_SETTING}
-        #unComLineRe = re.compile(UNCOMMENTED_LINE.format(**formatVars))
-        _, unComLineRe, _ = build_regexes(formatVars)
+        unComLineRe = re.compile(UNCOMMENTED_LINE.format(**GENERIC_RE_VARS))
         file.seek(0)  # restart file
         for line in yield_utf8(file):
             searchUnComLine = unComLineRe.search(line)
@@ -356,21 +355,25 @@ def parse_inline_regex(nonCommentedText, setting, varErrMsg=""):
     return strToReplace
 
 
-def build_regexes(formatVars):
+def build_regexes(regexVars):
     """Build regular expressiones for commented line, uncommented lin and
     tag+option+setting.
     """
-    comLineRe = re.compile(COMMENTED_LINE.format(**formatVars))
-    unComLineRe = re.compile(UNCOMMENTED_LINE.format(**formatVars))
-    tagOptionSettingRe = re.compile(ONLY_TAG_GROUP_SETTING.format(**formatVars))
+    comLineRe = re.compile(COMMENTED_LINE.format(**regexVars))
+    unComLineRe = re.compile(UNCOMMENTED_LINE.format(**regexVars))
+    tagOptionSettingRe = re.compile(ONLY_TAG_GROUP_SETTING.format(**regexVars))
     return comLineRe, unComLineRe, tagOptionSettingRe
 
 
-def process_file(validFile, inputOptions, F_getAvailable, allOptionsSettings,
+def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
         allVariableOptions):
     """Process individual file. 
     Update allOptionsSettings and allVariableOptions
     Return if changes have been made or not
+
+    General algorithm is to scroll through file line by line, applying
+    consistent logic to make build database of available options or to make the
+    desired changes.
     """
     logging.debug(f"FILE CANDIDATE: {validFile}")
 
@@ -392,140 +395,245 @@ def process_file(validFile, inputOptions, F_getAvailable, allOptionsSettings,
         return False
     logging.debug(f"FILE MATCHED [{comInd}]: {validFile}")
 
-    # IMPL 2020-09-01: use generic options and settings first to establish scope then specifics
+    # IMPL 2020-09-01: use generic options and settings first to establish nested then specifics
     #       - Use ANY_OPTION ANY_SETTING
     # Prepare regular expressions
-    scopedOptionDb = OrderedDict()
-    formatVars = {'comInd':comInd, 'mtag':MULTI_TAG, 'tag':inputOptions.tag,
-            'option':inputOptions.option, 'setting':ANY_SETTING, 'scopedComInds':''}
+    nestedOptionDb = OrderedDict()
+    genericReVars = GENERIC_RE_VARS
+    genericReVars['comInd'] = comInd
+    inputReVars = {'comInd':comInd, 'mtag':MULTI_TAG, 'tag':userInput.tag,
+            'option':userInput.option, 'setting':ANY_SETTING, 'nestedComInds':''}
 
-    comLineRe, unComLineRe, tagOptionSettingRe = build_regexes(formatVars)
 
     # Read file and parse options in comments
     with open(validFile, 'r') as file: 
         fFlags = FileFlags()
         newLines = ['']*lineCount
-        scopeIncrement = 0
+        nestedIncrement = 0
         for idx, line in enumerate(yield_utf8(file)):
             newLines[idx] = line
             lineNum = idx + 1
-            fFlags.scopeLvl += scopeIncrement
-            scopeIncrement = 0 # reset
-            #print()
-            #print("DEBUG", f"{fFlags.scopeLvl:2}:{line[:-1]}")
-            formatVars['scopedComInds'] = f"\s*{comInd}"*fFlags.scopeLvl
-            comLineRe, unComLineRe, tagOptionSettingRe = build_regexes(formatVars)
-            searchCom = comLineRe.search(line)
-            searchUnCom = unComLineRe.search(line)
-            #print(bool(searchUnCom), bool(searchCom))
+            fFlags.nestedLvl += nestedIncrement
+            nestedIncrement = 0 # reset
+            #print(f"\nDEBUG_{fFlags.nestedLvl:2}_{line[:-1]}")
+            genericReVars['nestedComInds'] = f"\s*{comInd}"*fFlags.nestedLvl
+            inputReVars['nestedComInds'] = f"\s*{comInd}"*fFlags.nestedLvl
+            #comLineRe, unComLineRe, tagOptionSettingRe = build_regexes(inputReVars) @old
+            genericComLineRe, genericUnComLineRe, genericTagOptionSettingRe = build_regexes(genericReVars)
+            inputComLineRe, inputUnComLineRe, inputTagOptionSettingRe = build_regexes(inputReVars)
+            genricComMatch = genericComLineRe.search(line)
+            genericUnComMatch = genericUnComLineRe.search(line)
 
-
+            #print("\t\tmlineactive:", fFlags.F_multiLineActive, fFlags.F_multiCommented)
             # Get whole commented part of line
             wholeCom = ''
             fFlags.F_commented = None
-            if searchCom:  # must search for commented before uncommented
-                nonCom, wholeCom = searchCom.group('nonCom', 'wholeCom')
+            if genricComMatch:  # must search for commented before uncommented
+                nonCom, wholeCom = genricComMatch.group('nonCom', 'wholeCom')
                 fFlags.F_commented = True
-            elif searchUnCom:
-                nonCom, wholeCom = searchUnCom.group('nonCom', 'wholeCom')
+                #print("BINGA")
+            elif genericUnComMatch:
+                nonCom, wholeCom = genericUnComMatch.group('nonCom', 'wholeCom')
                 fFlags.F_commented = False
-            elif fFlags.F_multiLineActive:
-                lineNum = idx+1 # FIXME 2020-08-31: why is this here???
-                if fFlags.F_multiCommented:
-                    newLine = un_comment(line, comInd, lineNum)
-                else:
-                    newLine = comment(line, comInd, lineNum)
-                newLines[idx] = newLine  # redundant
-                fFlags.F_fileModified = True
-            else:
-                continue
+                #print("ZINGA")
 
             # Parse commented part of line
             varErrMsg = INVALID_VAR_REGEX_MSG.format(fileName=validFile,
                     lineNum=lineNum, line=line)
-            allReMatches = tagOptionSettingRe.findall(wholeCom)
-            #NMatches = len(allReMatches)
-            #for reMatch in tagOptionSettingRe.finditer(wholeCom):
+            tagOptionSettingMatches = genericTagOptionSettingRe.findall(wholeCom)
+            #NMatches = len(tagOptionSettingMatches)
+            #for reMatch in genericTagOptionSettingRe.finditer(wholeCom):
                 #mtag, tag, option, setting = reMatch.groups()
-            inlineOpCount = defaultdict(lambda: 0)
+            inlineOptionCount = defaultdict(lambda: 0)
+            inlineOptionMatch = defaultdict(lambda: False)
             inlineSettingMatch = defaultdict(lambda: False)
-            for mtag, tag, option, setting in allReMatches:
-                inlineOpCount[tag+option] += 1  # count occurances of option
-                if setting == inputOptions.setting:
-                    inlineSettingMatch[tag+option] = True
+            inlineMTagMatch = defaultdict(lambda: False)
+            F_optionSettingMatch = False
+            for mtag, tag, option, setting in tagOptionSettingMatches:
+                inlineOptionCount[tag+option] += 1  # count occurances of option
+                if re.search(userInput.tag+userInput.option, tag+option):
+                    inlineOptionMatch[tag+option] = True
+                    if re.search(userInput.setting, setting):
+                        inlineSettingMatch[tag+option] = True
+                        F_optionSettingMatch = True
+                if mtag:
+                    inlineMTagMatch[tag+option] = True
+
+            if fFlags.F_multiLineActive and not F_optionSettingMatch: # 2020-09-02: add logic to make sure options right
+                #print("ZOOOO")
+                lineNum = idx+1
+                if fFlags.F_multiCommented:
+                    #print("\t ABA")
+                    newLine = un_comment(line, comInd, lineNum)
+                else:
+                    #print("\t ZABA")
+                    newLine = comment(line, comInd, lineNum)
+                newLines[idx] = newLine  # redundant
+                fFlags.F_fileModified = True
+                continue
+
             fFlags.F_freezeChanges = False
-            for mtag, tag, option, setting in allReMatches:
+            for mtag, tag, option, setting in tagOptionSettingMatches:
                 if fFlags.F_freezeChanges:
                     continue
                 logging.debug((f"\tMATCH com({fFlags.F_commented}) "
                         "[{idx}]:{comInd}:{tag}:{option}:{setting}"))
+                # Logic for determining levels for nested options
                 if mtag:
                     if fFlags.F_commented:
-                        scopedOptionDb[fFlags.scopeLvl] = tag+option
-                        scopeIncrement = 1
+                        nestedOptionDb[fFlags.nestedLvl] = tag+option
+                        nestedIncrement = 1
                     else: # uncommented
-                        if len(scopedOptionDb) < 1:
+                        if len(nestedOptionDb) < 1:
                             pass
-                        elif scopedOptionDb[fFlags.scopeLvl-1] == tag+option:
-                            scopedOptionDb.pop(fFlags.scopeLvl-1)
-                            scopeIncrement = -1
+                        elif nestedOptionDb[fFlags.nestedLvl-1] == tag+option:
+                            nestedOptionDb.pop(fFlags.nestedLvl-1)
+                            nestedIncrement = -1
                             fFlags.F_commented = True
-                            #fFlags.F_freezeChanges = True
-                if F_getAvailable:  # building database of available options
-                    # Determine if option is enabled/disabled simultaneously
-                    if re.search(ANY_VAR, setting) and not fFlags.F_commented: 
+                if F_getAvailable:  # build database of available options
+                    # Determine active, inactive, and simultaneous options
+                    if re.search(ANY_VAR_SETTING, setting) and not fFlags.F_commented: 
                         strToReplace = parse_inline_regex(nonCom, setting, varErrMsg)
                         allVariableOptions[tag+option][strToReplace] = '='
                     elif allOptionsSettings[tag+option][setting] is None:
-                        if inlineOpCount[tag+option] > 1:
+                        if inlineOptionCount[tag+option] > 1:
                             allOptionsSettings[tag+option][setting] = None
                         else:
                             allOptionsSettings[tag+option][setting] = (not fFlags.F_commented)
                     elif allOptionsSettings[tag+option][setting] != (not fFlags.F_commented):
                         allOptionsSettings[tag+option][setting] = '?'  # ambiguous
-                else: # modifying desired option
-                    if re.search(ANY_VAR, setting) and not fFlags.F_commented:
-                        strToReplace = parse_inline_regex(nonCom, setting, varErrMsg)
-                        replaceStr = inputOptions.setting
-                        if replaceStr == strToReplace:
-                            logging.info(f"Option already set: {replaceStr}")
-                        else:
-                            with handle_errors(errTypes=AttributeError, msg=varErrMsg):
-                                newLines[idx] = set_var_option(line, comInd, lineNum,
-                                        replaceStr, setting, strToReplace, nonCom, wholeCom)
-                            fFlags.F_fileModified = True
-                    elif fFlags.F_commented:  # commented line
-                        if setting == inputOptions.setting:
-                            newLines[idx] = un_comment(line, comInd, lineNum)
-                            fFlags.F_fileModified = True
-                            fFlags = multi_line_logic(mtag, fFlags)
-                            #if mtag and not fFlags.F_multiLineActive:
-                            #    fFlags.F_multiLineActive = True
-                            #    fFlags.F_multiCommented = fFlags.F_commented
-                            #elif mtag and fFlags.F_multiLineActive:
-                            #    fFlags.F_multiLineActive = False
-                            #    fFlags.F_multiCommented = None
-                        else:
-                            pass
-                    elif not fFlags.F_commented:  # uncommented line
-                        print("NOT")
-                        #if setting != inputOptions.setting:  # setting mismatch
-                        if not inlineSettingMatch[tag+option]:  # not 1 match in line
-                            newLines[idx] = comment(line, comInd, lineNum)
-                            fFlags.F_fileModified = True
-                            #fFlags = multi_line_logic(mtag, fFlags)
-                            if mtag and not fFlags.F_multiLineActive:
-                                fFlags.F_multiLineActive = True
-                                fFlags.F_multiCommented = fFlags.F_commented
-                                fFlags.F_freezeChanges = True
-                            elif mtag and fFlags.F_multiLineActive:
-                                fFlags.F_multiLineActive = False
-                                fFlags.F_multiCommented = None
-                                fFlags.F_freezeChanges = True
-                            else:
-                                pass
-                    else:
-                        pass
+                else: # modify line based on user input
+                    if re.search(userInput.tag+userInput.option, tag+option): # match input tag+option
+                        if fFlags.F_commented:  # commented line
+                            if re.search(userInput.setting, setting): # match input setting
+                                # Uncomment lines with input tag+option and with input setting
+                                newLines[idx] = un_comment(line, comInd, lineNum)
+                                fFlags.F_fileModified = True
+                                fFlags = multi_line_logic(mtag, fFlags)
+                        else: # uncommented line
+                            if re.search(ANY_VAR_SETTING, setting):
+                                print("ZABAZAB")
+                                # If variable option, use user-supplied regex to modify line
+                                strToReplace = parse_inline_regex(nonCom, setting, varErrMsg)
+                                replaceStr = userInput.setting
+                                if replaceStr == strToReplace:
+                                    logging.info(f"Option already set: {replaceStr}")
+                                    print("BAAA")
+                                else:
+                                    print("CAAA")
+                                    with handle_errors(errTypes=AttributeError, msg=varErrMsg):
+                                        print("DAAA")
+                                        newLines[idx] = set_var_option(line, comInd, lineNum,
+                                                replaceStr, setting, strToReplace, nonCom, wholeCom)
+                                    print("EAAA")
+                                    fFlags.F_fileModified = True
+                                    fFlags.F_freezeChanges = True
+                                continue
+
+                        #if re.search(ANY_VAR_SETTING, setting) and not fFlags.F_commented:
+                        #    print("ZABAZAB")
+                        #    # If variable option, use user-supplied regex to modify line
+                        #    strToReplace = parse_inline_regex(nonCom, setting, varErrMsg)
+                        #    replaceStr = userInput.setting
+                        #    if replaceStr == strToReplace:
+                        #        logging.info(f"Option already set: {replaceStr}")
+                        #        print("BAAA")
+                        #    else:
+                        #        print("CAAA")
+                        #        with handle_errors(errTypes=AttributeError, msg=varErrMsg):
+                        #            print("DAAA")
+                        #            newLines[idx] = set_var_option(line, comInd, lineNum,
+                        #                    replaceStr, setting, strToReplace, nonCom, wholeCom)
+                        #        print("EAAA")
+                        #        fFlags.F_fileModified = True
+                        #        fFlags.F_freezeChanges = True
+                        #        continue
+                        #else:
+                        #    pass
+
+                        #if re.search(userInput.setting, setting): # match input setting
+                        #    if fFlags.F_commented:  # commented line
+                        #        # Uncomment lines with input tag+option and with input setting
+                        #        newLines[idx] = un_comment(line, comInd, lineNum)
+                        #        fFlags.F_fileModified = True
+                        #        fFlags = multi_line_logic(mtag, fFlags)
+                        #    else:
+                        #        pass
+
+                    #else:
+                        #if not fFlags.F_commented:  # uncommented line
+                            #print("AAAAA")
+                            # Comment lines with input tag+option without input setting
+                            #if setting != userInput.setting:  # setting mismatch
+                            if (inlineOptionMatch[tag+option]) and (not inlineSettingMatch[tag+option]):  # not 1 match in line
+                                #print("BBBBB")
+                                newLines[idx] = comment(line, comInd, lineNum)
+                                fFlags.F_fileModified = True
+                                #fFlags = multi_line_logic(mtag, fFlags)
+                                if mtag and not fFlags.F_multiLineActive:
+                                    #print("CCCCC")
+                                    fFlags.F_multiLineActive = True
+                                    fFlags.F_multiCommented = fFlags.F_commented
+                                    fFlags.F_freezeChanges = True
+                                elif mtag and fFlags.F_multiLineActive:
+                                    #print("DDDDD")
+                                    fFlags.F_multiLineActive = False
+                                    fFlags.F_multiCommented = None
+                                    fFlags.F_freezeChanges = True
+                                else:
+                                    pass
+
+                ##else: # modifying input option
+                #elif re.search(userInput.tag+userInput.option, tag+option):
+                #    # Match input tag+option
+                #    # Match setting
+                #    if re.search(userInput.setting, setting):
+                #        pass
+                #    print("DEBUG", tag, userInput.tag)
+                #    #setting = userInput.setting
+                #    #tag = userInput.tag
+                #    #option = userInput.option
+                #    if re.search(ANY_VAR_SETTING, setting) and not fFlags.F_commented:
+                #        # If variable option, use user-supplied regex to modify line
+                #        strToReplace = parse_inline_regex(nonCom, setting, varErrMsg)
+                #        replaceStr = userInput.setting
+                #        if replaceStr == strToReplace:
+                #            logging.info(f"Option already set: {replaceStr}")
+                #        else:
+                #            with handle_errors(errTypes=AttributeError, msg=varErrMsg):
+                #                newLines[idx] = set_var_option(line, comInd, lineNum,
+                #                        replaceStr, setting, strToReplace, nonCom, wholeCom)
+                #            fFlags.F_fileModified = True
+                #    elif fFlags.F_commented:  # commented line
+                #        # Uncomment lines with input tag+option and with input setting
+                #        #if inlineSettingMatch[tag+option]:
+                #        if setting == userInput.setting:
+                #            newLines[idx] = un_comment(line, comInd, lineNum)
+                #            fFlags.F_fileModified = True
+                #            fFlags = multi_line_logic(mtag, fFlags)
+                #        else:
+                #            pass
+                #    elif not fFlags.F_commented:  # uncommented line
+                #        # Comment lines with input tag+option without input setting
+                #        #if setting != userInput.setting:  # setting mismatch
+                #        tag = userInput.tag
+                #        option = userInput.option
+                #        if (inlineOptionMatch[tag+option]) and (not inlineSettingMatch[tag+option]):  # not 1 match in line
+                #            newLines[idx] = comment(line, comInd, lineNum)
+                #            fFlags.F_fileModified = True
+                #            #fFlags = multi_line_logic(mtag, fFlags)
+                #            if mtag and not fFlags.F_multiLineActive:
+                #                fFlags.F_multiLineActive = True
+                #                fFlags.F_multiCommented = fFlags.F_commented
+                #                fFlags.F_freezeChanges = True
+                #            elif mtag and fFlags.F_multiLineActive:
+                #                fFlags.F_multiLineActive = False
+                #                fFlags.F_multiCommented = None
+                #                fFlags.F_freezeChanges = True
+                #            else:
+                #                pass
+                #    else:
+                #        pass
 
     # Write file
     if fFlags.F_fileModified:
@@ -538,7 +646,7 @@ def process_file(validFile, inputOptions, F_getAvailable, allOptionsSettings,
 
 
 
-def scroll_through_files(validFiles, inputOptions, F_getAvailable):
+def scroll_through_files(validFiles, userInput, F_getAvailable):
     """Scroll through files, line by line. This function:
     * Returns available options if F_getAvailable is enabled.
     * Sets given options if F_getAvailable is disabled.
@@ -551,10 +659,10 @@ def scroll_through_files(validFiles, inputOptions, F_getAvailable):
         logging.info("Scrolling through files to gather available options")
     else:
         logging.info(("Scrolling through files to set: "
-                "{i.tag}{i.option} {i.setting}").format(i=inputOptions))
+                "{i.tag}{i.option} {i.setting}").format(i=userInput))
 
     for validFile in validFiles:
-        F_processed = process_file(validFile, inputOptions, F_getAvailable,
+        F_processed = process_file(validFile, userInput, F_getAvailable,
                 allOptionsSettings, allVariableOptions)
         if F_processed:
             F_changesMade = True
@@ -602,9 +710,9 @@ def handle_errors(errTypes, msg):
 
 def parse_and_check_input(args):
     """Parse input arguments. """
-    InputOptions = namedtuple('InputOptions', ['tag', 'option', 'setting',])
+    UserInput = namedtuple('UserInput', ['tag', 'option', 'setting',])
     if args.available:
-        return InputOptions(tag=ANY_TAG, option=ANY_WORD, setting=args.setting)
+        return UserInput(tag=ANY_TAG, option=ANY_OPTION, setting=args.setting)
     else:
         # Check if both a option and a setting were input
         if args.setting is None or args.option is None:
@@ -619,28 +727,28 @@ def parse_and_check_input(args):
         with handle_errors(errTypes=(AttributeError), msg=INVALID_OPTION_MSG):
             tag, option = checkTagOptionRe.search(args.option).groups()
         literalTag = ''.join([f'\{s}' for s in tag])  # read as literal symbols
-        return InputOptions(tag=literalTag, option=option, setting=setting)
+        return UserInput(tag=literalTag, option=option, setting=setting)
 
 def main(args):
     """Main function. """
     logging.info("Executing main function")
     logging.info("Checking input options")
-    inputOptions = parse_and_check_input(args)
+    userInput = parse_and_check_input(args)
     logging.info(f"<tag><option> <setting> = "
-            f"{inputOptions.tag}{inputOptions.option} {inputOptions.setting}")
+            f"{userInput.tag}{userInput.option} {userInput.setting}")
     logging.info("Generating valid files")
     validFiles = list(gen_valid_files())  # can run as generator
     logging.info(f"Valid files: {validFiles}")
     if args.available:
         tagsOptionsSettings, varOptions = scroll_through_files(validFiles,
-                inputOptions=inputOptions, F_getAvailable=True)
+                userInput=userInput, F_getAvailable=True)
         globPat = '*' if args.option is None else f"{args.option}*"
         print_available(tagsOptionsSettings, globPat=globPat)
         if len(varOptions) > 0:
             print_available(varOptions, globPat=globPat, headerMsg=None)
     else:
         F_changesMade = scroll_through_files(validFiles,
-                inputOptions=inputOptions, F_getAvailable=False)
+                userInput=userInput, F_getAvailable=False)
         if F_changesMade:
             print_and_log(f"See all modifications in {LOG_PATH}")
 

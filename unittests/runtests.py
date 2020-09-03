@@ -149,27 +149,27 @@ class TestIO(unittest.TestCase):
         reMultiFileSingleLine = re.compile(f".*singleLine.*")
         self.assertTrue(test_re(reMultiFileSingleLine, outputStr))
 
-    ############################################################
-    # Regression test: show that output is unchanged in with new version
-    ############################################################
-    def test_dotlog_output(self):
-        f"""Test that {LOG_FILE} remains unchanged for basic input"""
-        outputStr, _ = run_cmd(f"{RUNAPP} @none none")
-        with open(LOG_FILE, 'r') as file:
-            logStr = file.read()
-        dotLogReStr = r"""INFO:root:Executing main function
-INFO:root:Checking input options
-INFO:root:<tag><option> <setting> = \\@none none
-INFO:root:Generating valid files
-INFO:root:Valid files: \[.*\]
-INFO:root:Scrolling through files to set: \\@none none
-WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooLarge10kB.dat
-WARNING:root:Reason: File exceeds kB size limit of 10
-WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooManyLines.dat
-WARNING:root:Reason: File exceeds kB size limit of 10
-INFO:root:Finished in \d+.\d+ s"""
-        reRegressionMatch = re.compile(dotLogReStr)
-        self.assertTrue(test_re(reRegressionMatch, logStr))
+#     ############################################################
+#     # Regression test: show that output is unchanged in with new version
+#     ############################################################
+#     def test_dotlog_output(self):
+#         f"""Test that {LOG_FILE} remains unchanged for basic input"""
+#         outputStr, _ = run_cmd(f"{RUNAPP} @none none")
+#         with open(LOG_FILE, 'r') as file:
+#             logStr = file.read()
+#         dotLogReStr = r"""INFO:root:Executing main function
+# INFO:root:Checking input options
+# INFO:root:<tag><option> <setting> = \\@none none
+# INFO:root:Generating valid files
+# INFO:root:Valid files: \[.*\]
+# INFO:root:Scrolling through files to set: \\@none none
+# WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooLarge10kB.dat
+# WARNING:root:Reason: File exceeds kB size limit of 10
+# WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooManyLines.dat
+# WARNING:root:Reason: File exceeds kB size limit of 10
+# INFO:root:Finished in \d+.\d+ s"""
+#         reRegressionMatch = re.compile(dotLogReStr)
+#         self.assertTrue(test_re(reRegressionMatch, logStr))
 
 
 if __name__ == '__main__':
