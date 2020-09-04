@@ -245,7 +245,7 @@ def log_before_after_commenting(func):
 @log_before_after_commenting
 def un_comment(line, comInd, lineNum):
     """Uncomment a line. Input requires comment indicator string. """
-    line = re.sub(f'^\s*({comInd})', "", line)
+    line = re.sub(f'^(\s*)({comInd})', r"\1", line)
     return line
 
 @log_before_after_commenting
@@ -406,7 +406,7 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
 
 
     # Read file and parse options in comments
-    with open(validFile, 'r') as file: 
+    with open(validFile, 'r') as file:
         fFlags = FileFlags()
         newLines = ['']*lineCount
         nestedIncrement = 0
@@ -414,8 +414,8 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
             newLines[idx] = line
             lineNum = idx + 1
             fFlags.nestedLvl += nestedIncrement
-            nestedIncrement = 0 # reset
             #print(f"\nDEBUG_{fFlags.nestedLvl:2}_{line[:-1]}")
+            nestedIncrement = 0 # reset
             genericReVars['nestedComInds'] = f"\s*{comInd}"*fFlags.nestedLvl
             inputReVars['nestedComInds'] = f"\s*{comInd}"*fFlags.nestedLvl
             #comLineRe, unComLineRe, tagOptionSettingRe = build_regexes(inputReVars) @old
@@ -448,18 +448,19 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
             inlineOptionMatch = defaultdict(lambda: False)
             inlineSettingMatch = defaultdict(lambda: False)
             inlineMTagMatch = defaultdict(lambda: False)
-            F_optionSettingMatch = False
+            F_optionMatch = False
             for mtag, tag, option, setting in tagOptionSettingMatches:
                 inlineOptionCount[tag+option] += 1  # count occurances of option
                 if re.search(userInput.tag+userInput.option, tag+option):
                     inlineOptionMatch[tag+option] = True
+                    F_optionMatch = True
                     if re.search(userInput.setting, setting):
                         inlineSettingMatch[tag+option] = True
-                        F_optionSettingMatch = True
                 if mtag:
                     inlineMTagMatch[tag+option] = True
 
-            if fFlags.F_multiLineActive and not F_optionSettingMatch: # 2020-09-02: add logic to make sure options right
+            #if fFlags.F_multiLineActive and not F_optionSettingMatch:
+            if fFlags.F_multiLineActive and not F_optionMatch:
                 #print("ZOOOO")
                 lineNum = idx+1
                 if fFlags.F_multiCommented:
@@ -528,44 +529,7 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                                     print("EAAA")
                                     fFlags.F_fileModified = True
                                     fFlags.F_freezeChanges = True
-                                continue
-
-                        #if re.search(ANY_VAR_SETTING, setting) and not fFlags.F_commented:
-                        #    print("ZABAZAB")
-                        #    # If variable option, use user-supplied regex to modify line
-                        #    strToReplace = parse_inline_regex(nonCom, setting, varErrMsg)
-                        #    replaceStr = userInput.setting
-                        #    if replaceStr == strToReplace:
-                        #        logging.info(f"Option already set: {replaceStr}")
-                        #        print("BAAA")
-                        #    else:
-                        #        print("CAAA")
-                        #        with handle_errors(errTypes=AttributeError, msg=varErrMsg):
-                        #            print("DAAA")
-                        #            newLines[idx] = set_var_option(line, comInd, lineNum,
-                        #                    replaceStr, setting, strToReplace, nonCom, wholeCom)
-                        #        print("EAAA")
-                        #        fFlags.F_fileModified = True
-                        #        fFlags.F_freezeChanges = True
-                        #        continue
-                        #else:
-                        #    pass
-
-                        #if re.search(userInput.setting, setting): # match input setting
-                        #    if fFlags.F_commented:  # commented line
-                        #        # Uncomment lines with input tag+option and with input setting
-                        #        newLines[idx] = un_comment(line, comInd, lineNum)
-                        #        fFlags.F_fileModified = True
-                        #        fFlags = multi_line_logic(mtag, fFlags)
-                        #    else:
-                        #        pass
-
-                    #else:
-                        #if not fFlags.F_commented:  # uncommented line
-                            #print("AAAAA")
-                            # Comment lines with input tag+option without input setting
-                            #if setting != userInput.setting:  # setting mismatch
-                            if (inlineOptionMatch[tag+option]) and (not inlineSettingMatch[tag+option]):  # not 1 match in line
+                            elif (inlineOptionMatch[tag+option]) and (not inlineSettingMatch[tag+option]):  # not 1 match in line
                                 #print("BBBBB")
                                 newLines[idx] = comment(line, comInd, lineNum)
                                 fFlags.F_fileModified = True
@@ -582,58 +546,8 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                                     fFlags.F_freezeChanges = True
                                 else:
                                     pass
-
-                ##else: # modifying input option
-                #elif re.search(userInput.tag+userInput.option, tag+option):
-                #    # Match input tag+option
-                #    # Match setting
-                #    if re.search(userInput.setting, setting):
-                #        pass
-                #    print("DEBUG", tag, userInput.tag)
-                #    #setting = userInput.setting
-                #    #tag = userInput.tag
-                #    #option = userInput.option
-                #    if re.search(ANY_VAR_SETTING, setting) and not fFlags.F_commented:
-                #        # If variable option, use user-supplied regex to modify line
-                #        strToReplace = parse_inline_regex(nonCom, setting, varErrMsg)
-                #        replaceStr = userInput.setting
-                #        if replaceStr == strToReplace:
-                #            logging.info(f"Option already set: {replaceStr}")
-                #        else:
-                #            with handle_errors(errTypes=AttributeError, msg=varErrMsg):
-                #                newLines[idx] = set_var_option(line, comInd, lineNum,
-                #                        replaceStr, setting, strToReplace, nonCom, wholeCom)
-                #            fFlags.F_fileModified = True
-                #    elif fFlags.F_commented:  # commented line
-                #        # Uncomment lines with input tag+option and with input setting
-                #        #if inlineSettingMatch[tag+option]:
-                #        if setting == userInput.setting:
-                #            newLines[idx] = un_comment(line, comInd, lineNum)
-                #            fFlags.F_fileModified = True
-                #            fFlags = multi_line_logic(mtag, fFlags)
-                #        else:
-                #            pass
-                #    elif not fFlags.F_commented:  # uncommented line
-                #        # Comment lines with input tag+option without input setting
-                #        #if setting != userInput.setting:  # setting mismatch
-                #        tag = userInput.tag
-                #        option = userInput.option
-                #        if (inlineOptionMatch[tag+option]) and (not inlineSettingMatch[tag+option]):  # not 1 match in line
-                #            newLines[idx] = comment(line, comInd, lineNum)
-                #            fFlags.F_fileModified = True
-                #            #fFlags = multi_line_logic(mtag, fFlags)
-                #            if mtag and not fFlags.F_multiLineActive:
-                #                fFlags.F_multiLineActive = True
-                #                fFlags.F_multiCommented = fFlags.F_commented
-                #                fFlags.F_freezeChanges = True
-                #            elif mtag and fFlags.F_multiLineActive:
-                #                fFlags.F_multiLineActive = False
-                #                fFlags.F_multiCommented = None
-                #                fFlags.F_freezeChanges = True
-                #            else:
-                #                pass
-                #    else:
-                #        pass
+                            else:
+                                pass
 
     # Write file
     if fFlags.F_fileModified:
