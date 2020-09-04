@@ -136,8 +136,8 @@ WHOLE_COMMENT = (r'(?P<comInd>{comInd})'
     r'(?P<wholeCom>.*\s+{mtag}*{tag}+{option}\s+{setting}\s.*\n?)')
 #UNCOMMENTED_LINE = r'(?P<nonCom>^\s*(?:(?!{comInd}).)+)' + WHOLE_COMMENT
 #COMMENTED_LINE = r'(?P<nonCom>^\s*{comInd}(?:(?!{comInd}).)+)' + WHOLE_COMMENT
-UNCOMMENTED_LINE = r'^{nestedComInds}(?P<nonCom>\s*(?:(?!{comInd}).)+)' + WHOLE_COMMENT
-COMMENTED_LINE = r'^{nestedComInds}(?P<nonCom>\s*{comInd}(?:(?!{comInd}).)+)' + WHOLE_COMMENT
+UNCOMMENTED_LINE = r'^(?P<nestedComInds>{nestedComInds})(?P<nonCom>\s*(?:(?!{comInd}).)+)' + WHOLE_COMMENT
+COMMENTED_LINE = r'^(?P<nestedComInds>{nestedComInds})(?P<nonCom>\s*{comInd}(?:(?!{comInd}).)+)' + WHOLE_COMMENT
 ONLY_TAG_GROUP_SETTING = r'({mtag}*)({tag}+)({option})\s+({setting})\s'
 GENERIC_RE_VARS = {'comInd':ANY_COMMENT_IND, 'mtag':MULTI_TAG, 'tag':ANY_TAG,
         'option':ANY_OPTION, 'setting':ANY_SETTING, 'nestedComInds':''}
@@ -270,7 +270,7 @@ def check_varop_groups(reStr):
 
 def add_left_right_groups(inLineRe):
     """Add left and right groups to regex.
-    For example: \( (.*) 0 0 \) >>>> (\( )(.*)( 0 0 \)) """
+    For example: \( (.*) 0 0 \) becomes (\( )(.*)( 0 0 \)) """
     parensRe = (r'[^\\]([\(])', r'[^\\]([\)])')
     # Must add one to get rid of preceding character match
     leftParenInd = re.search(r'[^\\]([\(])', inLineRe).start() + 1
@@ -282,20 +282,21 @@ def add_left_right_groups(inLineRe):
     return newInLineRe
 
 @log_before_after_commenting
-def set_var_option(line, comInd, lineNum, replaceStr, setting, strToReplace,
-        nonCom, wholeCom):
+def set_var_option(line, comInd, strToReplace, setting, nestedComInds, nonCom, wholeCom):
     """Return line with new variable option set. """
     # First ensure that there is only one () in the re
     #inLineReSearch = re.search(inLineRe, nonCom)
     # Next, add 2 new groups, one for the left side and the other for the right
-    inLineRe = in_line_regex(setting)
-    logging.info(f"Setting variable option:{inLineRe}:{replaceStr}")
+    inLineRe = strip_setting_regex(setting)
+    logging.info(f"Setting variable option:{inLineRe}:{strToReplace}")
     newInLineRe = add_left_right_groups(inLineRe)
 
     def replace_F(m):
-        return m.group(1) + replaceStr + m.group(3)
+        return m.group(1) + strToReplace + m.group(3)
+    #newNonCom = re.sub(newInLineRe, replace_F, nonCom)
     newNonCom = re.sub(newInLineRe, replace_F, nonCom)
-    return newNonCom + comInd + wholeCom
+    newLine = nestedComInds + newNonCom + comInd + wholeCom
+    return newLine
 
 def skip_file_warning(fileName, reason):
     """Log a warning that the current file is being skipped. """
@@ -337,7 +338,7 @@ def get_comment_indicator(fileName):
             if searchUnComLine:
                 return searchUnComLine.group('comInd')
 
-def in_line_regex(settingStr):
+def strip_setting_regex(settingStr):
     """Return in-line regular expression using setting."""
     return settingStr[2:-1]  # remove surrounding =''
 
@@ -349,7 +350,7 @@ def parse_inline_regex(nonCommentedText, setting, varErrMsg=""):
     # Attribute handles regex fail. Index handles .group() fail
     #TODO 2015-08-16: handle sre_constants.error for unbalanced parentheses
     with handle_errors(errTypes=(AttributeError, IndexError), msg=varErrMsg):
-        inLineRe = in_line_regex(setting)
+        inLineRe = strip_setting_regex(setting)
         check_varop_groups(inLineRe)
         strToReplace = re.search(inLineRe, nonCommentedText).group(1)
     return strToReplace
@@ -420,30 +421,23 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
             inputReVars['nestedComInds'] = f"\s*{comInd}"*fFlags.nestedLvl
             #comLineRe, unComLineRe, tagOptionSettingRe = build_regexes(inputReVars) @old
             genericComLineRe, genericUnComLineRe, genericTagOptionSettingRe = build_regexes(genericReVars)
-            inputComLineRe, inputUnComLineRe, inputTagOptionSettingRe = build_regexes(inputReVars)
             genricComMatch = genericComLineRe.search(line)
             genericUnComMatch = genericUnComLineRe.search(line)
 
-            #print("\t\tmlineactive:", fFlags.F_multiLineActive, fFlags.F_multiCommented)
             # Get whole commented part of line
             wholeCom = ''
             fFlags.F_commented = None
             if genricComMatch:  # must search for commented before uncommented
-                nonCom, wholeCom = genricComMatch.group('nonCom', 'wholeCom')
+                nestedComInds, nonCom, wholeCom = genricComMatch.group('nestedComInds', 'nonCom', 'wholeCom')
                 fFlags.F_commented = True
-                #print("BINGA")
             elif genericUnComMatch:
-                nonCom, wholeCom = genericUnComMatch.group('nonCom', 'wholeCom')
+                nestedComInds, nonCom, wholeCom = genericUnComMatch.group('nestedComInds', 'nonCom', 'wholeCom')
                 fFlags.F_commented = False
-                #print("ZINGA")
 
             # Parse commented part of line
             varErrMsg = INVALID_VAR_REGEX_MSG.format(fileName=validFile,
                     lineNum=lineNum, line=line)
             tagOptionSettingMatches = genericTagOptionSettingRe.findall(wholeCom)
-            #NMatches = len(tagOptionSettingMatches)
-            #for reMatch in genericTagOptionSettingRe.finditer(wholeCom):
-                #mtag, tag, option, setting = reMatch.groups()
             inlineOptionCount = defaultdict(lambda: 0)
             inlineOptionMatch = defaultdict(lambda: False)
             inlineSettingMatch = defaultdict(lambda: False)
@@ -459,15 +453,11 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                 if mtag:
                     inlineMTagMatch[tag+option] = True
 
-            #if fFlags.F_multiLineActive and not F_optionSettingMatch:
             if fFlags.F_multiLineActive and not F_optionMatch:
-                #print("ZOOOO")
                 lineNum = idx+1
                 if fFlags.F_multiCommented:
-                    #print("\t ABA")
                     newLine = un_comment(line, comInd, lineNum)
                 else:
-                    #print("\t ZABA")
                     newLine = comment(line, comInd, lineNum)
                 newLines[idx] = newLine  # redundant
                 fFlags.F_fileModified = True
@@ -513,34 +503,27 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                                 fFlags = multi_line_logic(mtag, fFlags)
                         else: # uncommented line
                             if re.search(ANY_VAR_SETTING, setting):
-                                print("ZABAZAB")
                                 # If variable option, use user-supplied regex to modify line
                                 strToReplace = parse_inline_regex(nonCom, setting, varErrMsg)
                                 replaceStr = userInput.setting
                                 if replaceStr == strToReplace:
                                     logging.info(f"Option already set: {replaceStr}")
-                                    print("BAAA")
                                 else:
-                                    print("CAAA")
                                     with handle_errors(errTypes=AttributeError, msg=varErrMsg):
-                                        print("DAAA")
-                                        newLines[idx] = set_var_option(line, comInd, lineNum,
-                                                replaceStr, setting, strToReplace, nonCom, wholeCom)
-                                    print("EAAA")
+                                        newLines[idx] = set_var_option(
+                                                line, comInd, replaceStr, setting,
+                                                nestedComInds, nonCom, wholeCom)
                                     fFlags.F_fileModified = True
                                     fFlags.F_freezeChanges = True
                             elif (inlineOptionMatch[tag+option]) and (not inlineSettingMatch[tag+option]):  # not 1 match in line
-                                #print("BBBBB")
                                 newLines[idx] = comment(line, comInd, lineNum)
                                 fFlags.F_fileModified = True
                                 #fFlags = multi_line_logic(mtag, fFlags)
                                 if mtag and not fFlags.F_multiLineActive:
-                                    #print("CCCCC")
                                     fFlags.F_multiLineActive = True
                                     fFlags.F_multiCommented = fFlags.F_commented
                                     fFlags.F_freezeChanges = True
                                 elif mtag and fFlags.F_multiLineActive:
-                                    #print("DDDDD")
                                     fFlags.F_multiLineActive = False
                                     fFlags.F_multiCommented = None
                                     fFlags.F_freezeChanges = True
