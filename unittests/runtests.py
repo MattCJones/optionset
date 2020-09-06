@@ -12,7 +12,7 @@ RUNAPP = "../bin/optionset.py"  # run the application
 LOG_FILE = ".log.optionset.py"
 
 
-def test_re(regex, strToSearch):
+def test_regex(regex, strToSearch):
     """Test that regex expression works for given strToSearch"""
     if regex.search(strToSearch):
         return True
@@ -34,7 +34,12 @@ def set_default_options():
             "@validFileBaseDir a", "@validCommentType Bash",
             "@validFormat difficultPlacement", "@variableOption 1e-5",
             "@validSyntax difficultComments", "~@\$\^&multipleTags a",
-            "@multiFile singleLine",)
+            "@multiFile singleLine",
+            "@overlappingOption a", "@overlappingOptionShort a",
+            "@overlappingMultiline a",
+            "@nestedL0 a", "@nestedL1 a", "@nestedL2 a",
+            "@nestedVarOp ' -12.34e-5'",
+            )
     for defOptionStr in defOptionStrs:
         _, _ = run_cmd(f"{RUNAPP} {defOptionStr}")
 
@@ -66,17 +71,17 @@ class TestIO(unittest.TestCase):
         """Test basic input and output"""
         reHasInputErr = re.compile(".*InputError.*")
         outputStr, _ = run_cmd(f"{RUNAPP}")
-        self.assertTrue(test_re(reHasInputErr, outputStr))
+        self.assertTrue(test_regex(reHasInputErr, outputStr))
 
         reShowsUsage = re.compile("^usage:.*")
         outputStr, _ = run_cmd(f"{RUNAPP} -h")
-        self.assertTrue(test_re(reShowsUsage, outputStr))
+        self.assertTrue(test_regex(reShowsUsage, outputStr))
 
     def test_ignored(self):
         """Test ignored files and directories"""
         reHasIgnoreStr = re.compile(".*shouldIgnore.*")
         outputStr, _ = run_cmd(f"{RUNAPP} -a")
-        self.assertFalse(test_re(reHasIgnoreStr, outputStr))
+        self.assertFalse(test_regex(reHasIgnoreStr, outputStr))
 
     def test_extensions(self):
         """Test various valid file extensions"""
@@ -84,7 +89,7 @@ class TestIO(unittest.TestCase):
         settingStrs = ('dat', 'nml', 'none', 'txt', 'org', 'orig', 'yaml',)
         for settingStr in settingStrs:
             reHasExtension = re.compile(f".*{settingStr}.*")
-            self.assertTrue(test_re(reHasExtension, outputStr))
+            self.assertTrue(test_regex(reHasExtension, outputStr))
 
     ############################################################
     # Test invalid format
@@ -93,7 +98,7 @@ class TestIO(unittest.TestCase):
         """Test invalid files and directories"""
         reInvalid = re.compile(".*ERROR.*")
         outputStr, _ = run_cmd(f"{RUNAPP} -a")
-        self.assertFalse(test_re(reInvalid, outputStr))
+        self.assertFalse(test_regex(reInvalid, outputStr))
 
     ############################################################
     # Test valid format
@@ -104,7 +109,7 @@ class TestIO(unittest.TestCase):
         settingStrs = ('Bash', 'CPP', 'MATLAB', 'NML', 'custom',)
         for settingStr in settingStrs:
             reCommentType = re.compile(f".*{settingStr}.*")
-            self.assertTrue(test_re(reCommentType, outputStr))
+            self.assertTrue(test_regex(reCommentType, outputStr))
 
     def test_valid_syntax(self):
         """Test proper syntax of options and settings"""
@@ -113,7 +118,7 @@ class TestIO(unittest.TestCase):
                 'difficultComment',)
         for settingStr in settingStrs:
             reSyntax = re.compile(f".*{settingStr}.*")
-            self.assertTrue(test_re(reSyntax, outputStr))
+            self.assertTrue(test_regex(reSyntax, outputStr))
 
     def test_variable_options(self):
         """Test variable option"""
@@ -121,55 +126,98 @@ class TestIO(unittest.TestCase):
         reSetting = re.compile(f".*{varSettingStr}.*")
 
         outputStrBefore, _ = run_cmd(f"{RUNAPP} -a @variableOption")
-        self.assertFalse(test_re(reSetting, outputStrBefore))
+        self.assertFalse(test_regex(reSetting, outputStrBefore))
 
         outputStrChange, _ = run_cmd(f"{RUNAPP} -v @variableOption {varSettingStr}")
-        self.assertTrue(test_re(reSetting, outputStrChange))
+        self.assertTrue(test_regex(reSetting, outputStrChange))
 
         outputStrAfter, _ = run_cmd(f"{RUNAPP} -a @variableOption")
-        self.assertTrue(test_re(reSetting, outputStrAfter))
+        self.assertTrue(test_regex(reSetting, outputStrAfter))
 
     def test_multiple_tags(self):
         """Test multiple tags in options"""
-        settingStr = r'~@$^&multipleTags'
-        #settingStr = r'~@@multipleTags'
-        outputStr, _ = run_cmd(f"{RUNAPP} -a {settingStr}")
+        optionStr = r"~@$^&multipleTags"
+        outputStr, _ = run_cmd(f"{RUNAPP} -a {optionStr}")
         reSyntax = re.compile(f".*\~\@\$\^\&multipleTags.*")
-        self.assertTrue(test_re(reSyntax, outputStr))
+        self.assertTrue(test_regex(reSyntax, outputStr))
 
     def test_multiple_files(self):
         """Test options placed in multiple files"""
-        settingStr = r'@multiFile'
+        optionStr = r"\@multiFile"
 
-        outputStr, _ = run_cmd(f"{RUNAPP} {settingStr} multiLine -v")
-        reMultiFileMultiLine = re.compile(f".*multiLine.*")
-        self.assertTrue(test_re(reMultiFileMultiLine, outputStr))
+        settingStr = "multiLine"
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        reMultiFileMultiLine = re.compile(f".*{optionStr} {settingStr}.*")
+        self.assertTrue(test_regex(reMultiFileMultiLine, outputStr))
 
-        outputStr, _ = run_cmd(f"{RUNAPP} {settingStr} singleLine -v")
-        reMultiFileSingleLine = re.compile(f".*singleLine.*")
-        self.assertTrue(test_re(reMultiFileSingleLine, outputStr))
+        settingStr = "singleLine"
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        reMultiFileSingleLine = re.compile(f".*{optionStr} {settingStr}.*")
+        self.assertTrue(test_regex(reMultiFileSingleLine, outputStr))
 
-#     ############################################################
-#     # Regression test: show that output is unchanged in with new version
-#     ############################################################
-#     def test_dotlog_output(self):
-#         f"""Test that {LOG_FILE} remains unchanged for basic input"""
-#         outputStr, _ = run_cmd(f"{RUNAPP} @none none")
-#         with open(LOG_FILE, 'r') as file:
-#             logStr = file.read()
-#         dotLogReStr = r"""INFO:root:Executing main function
-# INFO:root:Checking input options
-# INFO:root:<tag><option> <setting> = \\@none none
-# INFO:root:Generating valid files
-# INFO:root:Valid files: \[.*\]
-# INFO:root:Scrolling through files to set: \\@none none
-# WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooLarge10kB.dat
-# WARNING:root:Reason: File exceeds kB size limit of 10
-# WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooManyLines.dat
-# WARNING:root:Reason: File exceeds kB size limit of 10
-# INFO:root:Finished in \d+.\d+ s"""
-#         reRegressionMatch = re.compile(dotLogReStr)
-#         self.assertTrue(test_re(reRegressionMatch, logStr))
+    def test_overlapping_options(self):
+        """Test overlapping options"""
+        optionStr = r"\@overlappingOption"
+        settingStr = "c"
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        reOverlapping = re.compile(f".*{optionStr} {settingStr}.*")
+        self.assertTrue(test_regex(reOverlapping, outputStr))
+
+        optionStr = r"\@overlappingOptionShort"
+        settingStr = "c"
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        reOverlappingShort = re.compile(f".*{optionStr} {settingStr}.*")
+        self.assertTrue(test_regex(reOverlappingShort, outputStr))
+
+    def test_nested_options(self):
+        """Test multi-scoped options"""
+        optionStr = r"\@nested"
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+
+        optionStr = r"\@nestedL0"
+        reNested = re.compile(f".*{optionStr}.*")
+        self.assertTrue(test_regex(reNested, outputStr))
+
+        optionStr = r"\@nestedL1"
+        reNested = re.compile(f".*{optionStr}.*")
+        self.assertTrue(test_regex(reNested, outputStr))
+
+        optionStr = r"\@nestedL2"
+        reNested = re.compile(f".*{optionStr}.*")
+        self.assertTrue(test_regex(reNested, outputStr))
+
+        optionStr = r"\@nestedVarOp"
+        reNested = re.compile(f".*{optionStr}.*")
+        self.assertTrue(test_regex(reNested, outputStr))
+
+        optionStr = r"\@nestedVarOp"
+        settingStr = r" 8.23e-3"
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        reNested = re.compile(f".*{settingStr}.*{optionStr}.*")
+        self.assertTrue(test_regex(reNested, outputStr))
+
+
+    ############################################################
+    # Regression test: show that output is unchanged in with new version
+    ############################################################
+    def test_dotlog_output(self):
+        f"""Test that {LOG_FILE} remains unchanged for basic input"""
+        outputStr, _ = run_cmd(f"{RUNAPP} @none none")
+        with open(LOG_FILE, 'r') as file:
+            logStr = file.read()
+        dotLogReStr = r"""INFO:root:Executing main function
+INFO:root:Checking input options
+INFO:root:<tag><option> <setting> = \\@none none
+INFO:root:Generating valid files
+INFO:root:Valid files: \[.*\]
+INFO:root:Scrolling through files to set: \\@none none
+WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooLarge10kB.dat
+WARNING:root:Reason: File exceeds kB size limit of 10
+WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooManyLines.dat
+WARNING:root:Reason: File exceeds kB size limit of 10
+INFO:root:Finished in \d+.\d+ s"""
+        reRegressionMatch = re.compile(dotLogReStr)
+        self.assertTrue(test_regex(reRegressionMatch, logStr))
 
 
 if __name__ == '__main__':

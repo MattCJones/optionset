@@ -6,9 +6,8 @@ Code here for just a # @overlappingOption a
 #Code here for just b # @overlappingOption b
 #Code here for just c # @overlappingOption c
 
-Code here for options a and b # @overlappingOptionB a @overlappingOptionB b
-#Code here for c # @overlappingOptionB c
-
+Code here for options a and b # @overlappingOptionShort a @overlappingOptionShort b
+#Code here for c # @overlappingOptionShort c
 
 ############################################################
 

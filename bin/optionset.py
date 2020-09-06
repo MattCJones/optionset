@@ -79,7 +79,7 @@ Using your favorite scripting language, it is convenient to glue this program
 into more advanced option variation routines to create advanced parameter
 sweeps and case studies.
 """
-        
+
 parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=DESCRIPTION)
@@ -113,10 +113,10 @@ if os.path.exists(LOG_PATH):
 logging.basicConfig(filename=LOG_PATH, level=LOG_LEVEL)
 
 ## Initialize global variables
-IGNORE_DIRS = {'processor[0-9]*', '.git', '[0-9]', '[0-9][0-9]*', '[0-9].[0-9]*', 
+IGNORE_DIRS = {'processor[0-9]*', '.git', '[0-9]', '[0-9][0-9]*', '[0-9].[0-9]*',
         'triSurface', 'archive', 'sets', 'log', 'logs'}  # UNIX-based wild cards
-IGNORE_FILES = {BASENAME, LOG_PATH, '.*', 'log.*', '*.log', '*.py', 
-        '*.gz', 'faces', 'neighbour', 'owner', 'points*', 'buildTestMatrix', 
+IGNORE_FILES = {BASENAME, LOG_PATH, '.*', 'log.*', '*.log', '*.py',
+        '*.gz', 'faces', 'neighbour', 'owner', 'points*', 'buildTestMatrix',
         '*.png', '*.jpg', '*.obj', '*.stl', '*.stp', '*.step', }
 MAX_FLINES = 9999  # maximum lines per file
 MAX_FSIZE_KB = 10  # maximum file size, kilobytes
@@ -124,11 +124,11 @@ MAX_FSIZE_KB = 10  # maximum file size, kilobytes
 # Regular expression frameworks
 ANY_COMMENT_IND = r'(?:[#%!]|//|--)'  # comment indicators: # % // -- !
 MULTI_TAG = r'[*]'  # for multi-line commenting
-ANY_WORD = r'[\+a-zA-Z0-9._-]+'
+ANY_WORD = r'[\+a-zA-Z0-9._\-]+'
 ANY_OPTION = ANY_WORD
 ANY_VAR_SETTING = r'\={quote}.+{quote}'.format(quote=r'[\'"]')
-ANY_SETTING = r'(?:{anyWord}|{anyVar})'.format(anyWord=ANY_WORD, anyVar=ANY_VAR_SETTING)
-VALID_INPUT_SETTING = '(?: |{})+'.format(ANY_WORD)  # words with spaces (using '')
+ANY_SETTING = f'(?:{ANY_WORD}|{ANY_VAR_SETTING})'
+VALID_INPUT_SETTING = f'(?: |{ANY_WORD})+'  # words with spaces (using '')
 BRACKETS = r'[()<>\[\]]'
 ANY_TAG = f'(?:(?!\s|{ANY_COMMENT_IND}|{MULTI_TAG}|{ANY_WORD}|{BRACKETS}).)'  # not these; implicitely set
 #ANY_TAG = r'[~`!@$^&\\\?\|]'  # explicitely set
@@ -192,7 +192,7 @@ class FileFlags:
         self.F_multiCommented = F_multiCommented
         self.F_freezeChanges = F_freezeChanges
         self.nestedLvl = nestedLvl
-        
+
 ## Define utility functions
 def print_available(db, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_MSG):
     """Print available options and options for use; optionally sort with unix regex. """
@@ -282,7 +282,7 @@ def add_left_right_groups(inLineRe):
     return newInLineRe
 
 @log_before_after_commenting
-def set_var_option(line, comInd, strToReplace, setting, nestedComInds, nonCom, wholeCom):
+def set_var_option(line, comInd, lineNum, strToReplace, setting, nestedComInds, nonCom, wholeCom):
     """Return line with new variable option set. """
     # First ensure that there is only one () in the re
     #inLineReSearch = re.search(inLineRe, nonCom)
@@ -368,7 +368,7 @@ def build_regexes(regexVars):
 
 def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
         allVariableOptions):
-    """Process individual file. 
+    """Process individual file.
     Update allOptionsSettings and allVariableOptions
     Return if changes have been made or not
 
@@ -385,11 +385,11 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
         skip_file_warning(validFile,
                 reason=f"File exceeds kB size limit of {MAX_FSIZE_KB}")
         return False
-    elif lineCount > MAX_FLINES: 
+    elif lineCount > MAX_FLINES:
         skip_file_warning(validFile,
                 reason=f"File exceeds line limit of {MAX_FLINES}")
         return False
-    
+
     # Get string that signifies a commented line
     comInd = get_comment_indicator(validFile)
     if not comInd:
@@ -445,10 +445,10 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
             F_optionMatch = False
             for mtag, tag, option, setting in tagOptionSettingMatches:
                 inlineOptionCount[tag+option] += 1  # count occurances of option
-                if re.search(userInput.tag+userInput.option, tag+option):
+                if (userInput.tag+userInput.option).replace('\\', '') == tag+option:
                     inlineOptionMatch[tag+option] = True
                     F_optionMatch = True
-                    if re.search(userInput.setting, setting):
+                    if userInput.setting.replace('\\', '') == setting:
                         inlineSettingMatch[tag+option] = True
                 if mtag:
                     inlineMTagMatch[tag+option] = True
@@ -483,7 +483,7 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                             fFlags.F_commented = True
                 if F_getAvailable:  # build database of available options
                     # Determine active, inactive, and simultaneous options
-                    if re.search(ANY_VAR_SETTING, setting) and not fFlags.F_commented: 
+                    if re.search(ANY_VAR_SETTING, setting) and not fFlags.F_commented:
                         strToReplace = parse_inline_regex(nonCom, setting, varErrMsg)
                         allVariableOptions[tag+option][strToReplace] = '='
                     elif allOptionsSettings[tag+option][setting] is None:
@@ -494,9 +494,9 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                     elif allOptionsSettings[tag+option][setting] != (not fFlags.F_commented):
                         allOptionsSettings[tag+option][setting] = '?'  # ambiguous
                 else: # modify line based on user input
-                    if re.search(userInput.tag+userInput.option, tag+option): # match input tag+option
+                    if ((userInput.tag+userInput.option).replace('\\', '') == tag+option): # match input tag+option
                         if fFlags.F_commented:  # commented line
-                            if re.search(userInput.setting, setting): # match input setting
+                            if (userInput.setting == setting): # match input setting
                                 # Uncomment lines with input tag+option and with input setting
                                 newLines[idx] = un_comment(line, comInd, lineNum)
                                 fFlags.F_fileModified = True
@@ -511,7 +511,8 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                                 else:
                                     with handle_errors(errTypes=AttributeError, msg=varErrMsg):
                                         newLines[idx] = set_var_option(
-                                                line, comInd, replaceStr, setting,
+                                                line, comInd, lineNum,
+                                                replaceStr, setting,
                                                 nestedComInds, nonCom, wholeCom)
                                     fFlags.F_fileModified = True
                                     fFlags.F_freezeChanges = True
@@ -534,7 +535,7 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
 
     # Write file
     if fFlags.F_fileModified:
-        with open(validFile, 'w') as file: 
+        with open(validFile, 'w') as file:
             file.writelines(newLines)
         print_and_log(f"File modified: {file.name}")
         return True
@@ -592,7 +593,7 @@ def gen_valid_files():
 def print_and_log(printStr):
     """Print to standard out and INFO level in log. """
     logging.info(printStr)
-    if not args.quiet: 
+    if not args.quiet:
         print(printStr)
 
 
@@ -615,7 +616,7 @@ def parse_and_check_input(args):
         if args.setting is None or args.option is None:
             parser.print_usage()
             print_and_log(INCOMPLETE_INPUT_MSG)
-            exit()
+            exit() # TODO 2020-09-05: add raise TypeError or such
         # Check if setting is formatted correctly
         with handle_errors(errTypes=AttributeError, msg=INVALID_SETTING_MSG):
             setting = re.search(f"(^{VALID_INPUT_SETTING}$)", args.setting).group(0)
