@@ -1,1 +1,2 @@
 *.log.optionset.py
+*__pycache__

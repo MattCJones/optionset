@@ -47,13 +47,13 @@ and the dictionary file will be modified and re-written as,
 application simpleFoam // @simulation steady
 
 where the steady solver 'simpleFoam' is now uncommented and active. Here
-@simulation is the 'option' while transient and steady are the 'settings'.  
+@simulation is the 'option' while transient and steady are the 'settings'.
 An unlimited number of unique options and settings are allowed.  Each can only
-be composed of alphanumerical words with dots, pluses, minuses, and underscores.  
-Note that the first one or more characters in a option must be a special symbol 
+be composed of alphanumerical words with dots, pluses, minuses, and underscores.
+Note that the first one or more characters in a option must be a special symbol
 (non-bracket, non-comment-indicator, non-option/setting) such as '~`!@$%^&|\\?'.
 
-Use '{BASENAME} -a ' to view all of the options that you have set, or even 
+Use '{BASENAME} -a ' to view all of the options that you have set, or even
 '{BASENAME} -a @simple' to view all options that begin with '@simple'.
 
 To avoid comment clutter, multi-line options are encouraged by writing * in
@@ -66,7 +66,7 @@ functions        // *@forces on    | <---  |   functions        // @forces on
 //               // @forces off    |       |   //               // @forces off
 
 An additional feature is a variable option.  For variable options the dictionary
-text file must be formatted with a Perl-styled regular expression ='<regex>' 
+text file must be formatted with a Perl-styled regular expression ='<regex>'
 that matches the desired text to be changed such as,
 
 variable option = 5.5; // @varOption ='= (.*);'
@@ -75,7 +75,7 @@ To change 'variable option' to 6.7 use, '{BASENAME} @varOption 6.7'. The file be
 
 variable option = 6.7; // @varOption ='= (.*);'
 
-Using your favorite scripting language, it is convenient to glue this program 
+Using your favorite scripting language, it is convenient to glue this program
 into more advanced option variation routines to create advanced parameter
 sweeps and case studies.
 """
@@ -114,7 +114,7 @@ logging.basicConfig(filename=LOG_PATH, level=LOG_LEVEL)
 
 ## Initialize global variables
 IGNORE_DIRS = {'processor[0-9]*', '.git', '[0-9]', '[0-9][0-9]*', '[0-9].[0-9]*',
-        'triSurface', 'archive', 'sets', 'log', 'logs'}  # UNIX-based wild cards
+        'triSurface', 'archive', 'sets', 'log', 'logs', 'trash',}  # UNIX-based wild cards
 IGNORE_FILES = {BASENAME, LOG_PATH, '.*', 'log.*', '*.log', '*.py',
         '*.gz', 'faces', 'neighbour', 'owner', 'points*', 'buildTestMatrix',
         '*.png', '*.jpg', '*.obj', '*.stl', '*.stp', '*.step', }
@@ -155,18 +155,18 @@ the rest of the option must adhere to the following regular expression: {ANY_WOR
 To view help try:
     "{RUNCMD} -h"'''
 INVALID_SETTING_MSG = f'''InputError:
-Invalid setting name. The setting name must adhere to the following regular 
+Invalid setting name. The setting name must adhere to the following regular
 expression: {ANY_WORD}
 To view help try:
     "{RUNCMD} -h"'''
 INVALID_VAR_REGEX_MSG = '''FormatError:
-Invalid 'variable setting' regular expression. The commented regular expression 
+Invalid 'variable setting' regular expression. The commented regular expression
 must adhere to this form: %(anyVar)s
 (e.i. an equals sign followed by a user specified regular expression in quotes)
 Additionally, the corresponding code on the line of this 'variable setting' must
 match the user specified regular expression in quotes. This regular expression
 must have one and only one set of parentheses surrounding the variable option to
-be matched such as '(.*)'.  Otherwise, To specify literal parentheses in the 
+be matched such as '(.*)'.  Otherwise, To specify literal parentheses in the
 regex, use '\('.
 \r\nFile:{fileName}
 Line {lineNum}:{line}
@@ -174,10 +174,11 @@ To view help try:
     "%(runCmd)s -h"''' % {'anyVar':ANY_VAR_SETTING, 'runCmd':RUNCMD}
 PRINT_AVAIL_DEF_HDR_MSG = '''Printing available options and settings,
 ('  inactive  ', '> active <', '? both ?', '= variable ='):'''
-INVALID_REGEX_GROUP_MSG = '''InvalidRegexGroupError: {specificProblem}.
+INVALID_REGEX_GROUP_MSG = '''InvalidRegexGroupError: {specificProblem}
 A regular expression 'group' is denoted by a surrounding pair of parentheses '()'
 The commented variable setting should be the only group.'
-Use '()' to surround only the variable setting group in the commented regular expression.'''
+Use '()' to surround only the variable setting group in the commented regular expression.
+'''
 
 ## Define classes
 class FileFlags:
@@ -216,15 +217,15 @@ def print_available(db, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_MSG):
                 leftStr, rightStr = '?', '?'
             print_and_log(f"\t{leftStr} {subItem[0]} {rightStr}")
 
-def multi_line_logic(mtag, fFlags):
-    """Set multi-line flags based on current conditions. """
-    if mtag and not fFlags.F_multiLineActive:
-        fFlags.F_multiLineActive = True
-        fFlags.F_multiCommented = fFlags.F_commented
-    elif mtag and fFlags.F_multiLineActive:
-        fFlags.F_multiLineActive = False
-        fFlags.F_multiCommented = None
-    return fFlags
+#def multi_line_logic(mtag, fFlags):
+#    """Set multi-line flags based on current conditions. """
+#    if mtag and not fFlags.F_multiLineActive:
+#        fFlags.F_multiLineActive = True
+#        fFlags.F_multiCommented = fFlags.F_commented
+#    elif mtag and fFlags.F_multiLineActive:
+#        fFlags.F_multiLineActive = False
+#        fFlags.F_multiCommented = None
+#    return fFlags
 
 def log_before_after_commenting(func):
     """Wrapper to add file modifications to the log file. """
@@ -243,7 +244,7 @@ def log_before_after_commenting(func):
     return log
 
 @log_before_after_commenting
-def un_comment(line, comInd, lineNum):
+def uncomment(line, comInd, lineNum):
     """Uncomment a line. Input requires comment indicator string. """
     line = re.sub(f'^(\s*)({comInd})', r"\1", line)
     return line
@@ -257,16 +258,17 @@ def comment(line, comInd, lineNum):
 def check_varop_groups(reStr):
     """Calculate the number of regex groups designated by (). """
     allGroups = re.findall(r'([^\\]\(.*?[^\\]\))', reStr)
-    if allGroups is None:
+    if allGroups:
+        if len(allGroups) > 1:
+            print_and_log(INVALID_REGEX_GROUP_MSG.format(
+                specificProblem='More than one regex group \'()\' found'))
+            raise AttributeError
+        else:
+            pass
+    else:
         print_and_log(INVALID_REGEX_GROUP_MSG.format(
             specificProblem='No regex groups found.\r\n'))
         raise AttributeError
-    elif len(allGroups) > 1:
-        print_and_log(INVALID_REGEX_GROUP_MSG.format(
-            specificProblem='More than one regex group \'()\' found'))
-        raise AttributeError
-    else:
-        return len(allGroups)
 
 def add_left_right_groups(inLineRe):
     """Add left and right groups to regex.
@@ -348,8 +350,7 @@ def parse_inline_regex(nonCommentedText, setting, varErrMsg=""):
     stored in 'setting'.
     """
     # Attribute handles regex fail. Index handles .group() fail
-    #TODO 2015-08-16: handle sre_constants.error for unbalanced parentheses
-    with handle_errors(errTypes=(AttributeError, IndexError), msg=varErrMsg):
+    with handle_errors(errTypes=(AttributeError, IndexError, re.error), msg=varErrMsg):
         inLineRe = strip_setting_regex(setting)
         check_varop_groups(inLineRe)
         strToReplace = re.search(inLineRe, nonCommentedText).group(1)
@@ -415,11 +416,12 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
             newLines[idx] = line
             lineNum = idx + 1
             fFlags.nestedLvl += nestedIncrement
-            #print(f"\nDEBUG_{fFlags.nestedLvl:2}_{line[:-1]}")
             nestedIncrement = 0 # reset
+            #print(f"DEBUG_{fFlags.nestedLvl:2}_{str(fFlags.F_multiLineActive)[0]}_{line[:-1]}")
+            logging.debug(f"LINE[{lineNum}](L{fFlags.nestedLvl:1},"
+                    f"{str(fFlags.F_multiLineActive)[0]}):{line[:-1]}")
             genericReVars['nestedComInds'] = f"\s*{comInd}"*fFlags.nestedLvl
             inputReVars['nestedComInds'] = f"\s*{comInd}"*fFlags.nestedLvl
-            #comLineRe, unComLineRe, tagOptionSettingRe = build_regexes(inputReVars) @old
             genericComLineRe, genericUnComLineRe, genericTagOptionSettingRe = build_regexes(genericReVars)
             genricComMatch = genericComLineRe.search(line)
             genericUnComMatch = genericUnComLineRe.search(line)
@@ -456,7 +458,7 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
             if fFlags.F_multiLineActive and not F_optionMatch:
                 lineNum = idx+1
                 if fFlags.F_multiCommented:
-                    newLine = un_comment(line, comInd, lineNum)
+                    newLine = uncomment(line, comInd, lineNum)
                 else:
                     newLine = comment(line, comInd, lineNum)
                 newLines[idx] = newLine  # redundant
@@ -467,8 +469,8 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
             for mtag, tag, option, setting in tagOptionSettingMatches:
                 if fFlags.F_freezeChanges:
                     continue
-                logging.debug((f"\tMATCH com({fFlags.F_commented}) "
-                        "[{idx}]:{comInd}:{tag}:{option}:{setting}"))
+                logging.debug(f"\tMATCH:({comInd},{str(fFlags.F_commented)[0]})"
+                        f"{mtag}{tag}{option} {setting}")
                 # Logic for determining levels for nested options
                 if mtag:
                     if fFlags.F_commented:
@@ -478,9 +480,15 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                         if len(nestedOptionDb) < 1:
                             pass
                         elif nestedOptionDb[fFlags.nestedLvl-1] == tag+option:
+                            logging.debug("nested uncom switch")
                             nestedOptionDb.pop(fFlags.nestedLvl-1)
                             nestedIncrement = -1
                             fFlags.F_commented = True
+                            fFlags.F_multiLineActive = False
+                            fFlags.F_freezeChanges = True
+                            if inlineSettingMatch[tag+option]:  # match input setting
+                                newLines[idx] = uncomment(line, comInd, lineNum)
+                            continue
                 if F_getAvailable:  # build database of available options
                     # Determine active, inactive, and simultaneous options
                     if re.search(ANY_VAR_SETTING, setting) and not fFlags.F_commented:
@@ -494,13 +502,24 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                     elif allOptionsSettings[tag+option][setting] != (not fFlags.F_commented):
                         allOptionsSettings[tag+option][setting] = '?'  # ambiguous
                 else: # modify line based on user input
-                    if ((userInput.tag+userInput.option).replace('\\', '') == tag+option): # match input tag+option
+                    if ((userInput.tag+userInput.option).replace('\\', '') == tag+option):  # match input tag+option
                         if fFlags.F_commented:  # commented line
-                            if (userInput.setting == setting): # match input setting
+                            if (userInput.setting == setting):  # match input setting
                                 # Uncomment lines with input tag+option and with input setting
-                                newLines[idx] = un_comment(line, comInd, lineNum)
+                                newLines[idx] = uncomment(line, comInd, lineNum)
                                 fFlags.F_fileModified = True
-                                fFlags = multi_line_logic(mtag, fFlags)
+                                #fFlags = multi_line_logic(mtag, fFlags)
+                                if mtag and not fFlags.F_multiLineActive:
+                                    fFlags.F_multiLineActive = True
+                                    fFlags.F_multiCommented = fFlags.F_commented
+                                elif mtag and fFlags.F_multiLineActive:
+                                    fFlags.F_multiLineActive = False
+                                    fFlags.F_multiCommented = None
+                            else:  # setting does not match
+                                pass
+                            #    if mtag and fFlags.F_multiLineActive:
+                            #        fFlags.F_multiLineActive = False
+                            #        fFlags.F_multiCommented = None
                         else: # uncommented line
                             if re.search(ANY_VAR_SETTING, setting):
                                 # If variable option, use user-supplied regex to modify line
@@ -519,7 +538,6 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                             elif (inlineOptionMatch[tag+option]) and (not inlineSettingMatch[tag+option]):  # not 1 match in line
                                 newLines[idx] = comment(line, comInd, lineNum)
                                 fFlags.F_fileModified = True
-                                #fFlags = multi_line_logic(mtag, fFlags)
                                 if mtag and not fFlags.F_multiLineActive:
                                     fFlags.F_multiLineActive = True
                                     fFlags.F_multiCommented = fFlags.F_commented

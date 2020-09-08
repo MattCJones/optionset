@@ -9,4 +9,4 @@ Valid # word @validSyntax difficultComments # 1`~!@$%^^&*()_+-={}[]:";'<>,./?\|
 Valid multiple comment indicator # ~@$^&multipleTags a
 #Valid multiple comment indicator # ~@$^&multipleTags b
 
-Multi-file option in file # @multiFile singleLine
+#Multi-file option in file # @multiFile singleLine
