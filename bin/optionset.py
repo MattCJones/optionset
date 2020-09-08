@@ -115,7 +115,7 @@ logging.basicConfig(filename=LOG_PATH, level=LOG_LEVEL)
 ## Initialize global variables
 IGNORE_DIRS = {'processor[0-9]*', '.git', '[0-9]', '[0-9][0-9]*', '[0-9].[0-9]*',
         'triSurface', 'archive', 'sets', 'log', 'logs', 'trash',}  # UNIX-based wild cards
-IGNORE_FILES = {BASENAME, LOG_PATH, '.*', 'log.*', '*.log', '*.py',
+IGNORE_FILES = {BASENAME, LOG_PATH, '.*', 'log.*', '*.log', '*.py', '*.pyc',
         '*.gz', 'faces', 'neighbour', 'owner', 'points*', 'buildTestMatrix',
         '*.png', '*.jpg', '*.obj', '*.stl', '*.stp', '*.step', }
 MAX_FLINES = 9999  # maximum lines per file
@@ -172,7 +172,7 @@ regex, use '\('.
 Line {lineNum}:{line}
 To view help try:
     "%(runCmd)s -h"''' % {'anyVar':ANY_VAR_SETTING, 'runCmd':RUNCMD}
-PRINT_AVAIL_DEF_HDR_MSG = '''Printing available options and settings,
+PRINT_AVAIL_DEF_HDR_MSG = '''Printing available options and settings{matchMsg}
 ('  inactive  ', '> active <', '? both ?', '= variable ='):'''
 INVALID_REGEX_GROUP_MSG = '''InvalidRegexGroupError: {specificProblem}
 A regular expression 'group' is denoted by a surrounding pair of parentheses '()'
@@ -198,7 +198,11 @@ class FileFlags:
 def print_available(db, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_MSG):
     """Print available options and options for use; optionally sort with unix regex. """
     if headerMsg:
-        print_and_log(headerMsg)
+        if globPat != '*':
+            matchMsg = f"\nMatching glob regular expression: '{globPat}'"
+        else:
+            matchMsg = ""
+        print_and_log(headerMsg.format(matchMsg=matchMsg))
     logging.info(pformat(db, indent=1))
     for item in sorted(db.items()):
         if not fnmatch(item[0], globPat):
@@ -306,7 +310,7 @@ def skip_file_warning(fileName, reason):
     logging.warning(f"Reason: {reason}")
 
 def yield_utf8(file):
-    """Yield file lines only if they are utf-8 encoded (non-binary). """
+    """Yield file lines only if they are UTF-8 encoded (non-binary). """
     try:
         for line in file:
             yield line
@@ -316,7 +320,7 @@ def yield_utf8(file):
 def line_count(fileName, lineLimit):
     """Return number of lines in a file unless file exceeds line limit. """
     lineCount = 0
-    with open(fileName, 'r') as file:
+    with open(fileName, 'r', encoding='UTF-8') as file:
         for line in yield_utf8(file):
             lineCount += 1
             if lineCount > lineLimit:
@@ -325,7 +329,7 @@ def line_count(fileName, lineLimit):
 
 def get_comment_indicator(fileName):
     """Get comment indicator from fileName ('#', '//', or' %'). """
-    with open(fileName, 'r') as file:
+    with open(fileName, 'r', encoding='UTF-8') as file:
         comLineRe = re.compile(f'^\s*({ANY_COMMENT_IND}).*')
         for line in yield_utf8(file):
             searchComLine = comLineRe.search(line)
@@ -397,8 +401,6 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
         return False
     logging.debug(f"FILE MATCHED [{comInd}]: {validFile}")
 
-    # IMPL 2020-09-01: use generic options and settings first to establish nested then specifics
-    #       - Use ANY_OPTION ANY_SETTING
     # Prepare regular expressions
     nestedOptionDb = OrderedDict()
     genericReVars = GENERIC_RE_VARS
@@ -408,7 +410,7 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
 
 
     # Read file and parse options in comments
-    with open(validFile, 'r') as file:
+    with open(validFile, 'r', encoding='UTF-8') as file:
         fFlags = FileFlags()
         newLines = ['']*lineCount
         nestedIncrement = 0
@@ -553,7 +555,7 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
 
     # Write file
     if fFlags.F_fileModified:
-        with open(validFile, 'w') as file:
+        with open(validFile, 'w', encoding='UTF-8') as file:
             file.writelines(newLines)
         print_and_log(f"File modified: {file.name}")
         return True
@@ -630,20 +632,34 @@ def parse_and_check_input(args):
     if args.available:
         return UserInput(tag=ANY_TAG, option=ANY_OPTION, setting=args.setting)
     else:
-        # Check if both a option and a setting were input
-        if args.setting is None or args.option is None:
-            parser.print_usage()
-            print_and_log(INCOMPLETE_INPUT_MSG)
-            exit() # TODO 2020-09-05: add raise TypeError or such
-        # Check if setting is formatted correctly
-        with handle_errors(errTypes=AttributeError, msg=INVALID_SETTING_MSG):
-            setting = re.search(f"(^{VALID_INPUT_SETTING}$)", args.setting).group(0)
-        # Check if option is formatted correctly
-        checkTagOptionRe = re.compile(f"({ANY_TAG}+)({ANY_WORD})")
-        with handle_errors(errTypes=(AttributeError), msg=INVALID_OPTION_MSG):
-            tag, option = checkTagOptionRe.search(args.option).groups()
-        literalTag = ''.join([f'\{s}' for s in tag])  # read as literal symbols
-        return UserInput(tag=literalTag, option=option, setting=setting)
+        if (args.setting == ''):
+            args.available = True
+            return UserInput(tag=ANY_TAG, option=ANY_OPTION, setting=args.setting)
+        else:
+            # Check if setting is formatted correctly
+            with handle_errors(errTypes=AttributeError, msg=INVALID_SETTING_MSG):
+                setting = re.search(f"(^{VALID_INPUT_SETTING}$)", args.setting).group(0)
+            # Check if option is formatted correctly
+            checkTagOptionRe = re.compile(f"^({ANY_TAG}+)({ANY_WORD})")
+            with handle_errors(errTypes=(AttributeError), msg=INVALID_OPTION_MSG):
+                tag, option = checkTagOptionRe.search(args.option).groups()
+            literalTag = ''.join([f'\{s}' for s in tag])  # read as literal symbols
+            return UserInput(tag=literalTag, option=option, setting=setting)
+    #else: # pre-2020-09-08 functionality
+    #    # Check if both a option and a setting were input
+    #    if (args.setting == '') and (args.option == ''):
+    #        parser.print_usage()
+    #        print_and_log(INCOMPLETE_INPUT_MSG)
+    #        exit()
+    #    # Check if setting is formatted correctly
+    #    with handle_errors(errTypes=AttributeError, msg=INVALID_SETTING_MSG):
+    #        setting = re.search(f"(^{VALID_INPUT_SETTING}$)", args.setting).group(0)
+    #    # Check if option is formatted correctly
+    #    checkTagOptionRe = re.compile(f"({ANY_TAG}+)({ANY_WORD})")
+    #    with handle_errors(errTypes=(AttributeError), msg=INVALID_OPTION_MSG):
+    #        tag, option = checkTagOptionRe.search(args.option).groups()
+    #    literalTag = ''.join([f'\{s}' for s in tag])  # read as literal symbols
+    #    return UserInput(tag=literalTag, option=option, setting=setting)
 
 def main(args):
     """Main function. """
