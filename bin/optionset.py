@@ -136,7 +136,9 @@ if args.morehelp:
 
 ## Set up logging
 LOG_LEVEL = 'DEBUG' if args.debug else 'INFO'
-if os.path.exists(LOG_PATH):
+if args.nolog:
+    LOG_PATH = '/dev/null'
+elif os.path.exists(LOG_PATH):
     os.remove(LOG_PATH)
 logging.basicConfig(filename=LOG_PATH, level=LOG_LEVEL)
 
