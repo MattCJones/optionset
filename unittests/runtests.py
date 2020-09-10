@@ -176,9 +176,13 @@ class TestIO(unittest.TestCase):
     ############################################################
     def test_basic_io(self):
         """Test basic input and output"""
-        reHasInputErr = re.compile(".*InputError.*")
-        outputStr, _ = run_cmd(f"{RUNAPP}")
-        self.assertTrue(test_regex(reHasInputErr, outputStr))
+        reHasInputErr = re.compile(r".*InputError.*[\r\n].*Invalid option name.*")
+        outputStr, _ = run_cmd(f"{RUNAPP} @invalid@Option validSetting")
+        self.assertTrue(test_regex(reHasInputErr, outputStr), "Invalid option")
+
+        reHasInputErr = re.compile(r".*InputError.*[\r\n].*Invalid setting name.*")
+        outputStr, _ = run_cmd(f"{RUNAPP} @validOption @invalidSetting")
+        self.assertTrue(test_regex(reHasInputErr, outputStr), msg="Invalid setting")
 
         reShowsUsage = re.compile("^usage:.*")
         outputStr, _ = run_cmd(f"{RUNAPP} -h")
@@ -318,6 +322,12 @@ INFO:root:<tag><option> <setting> = \\@none none
 INFO:root:Generating valid files
 INFO:root:Valid files: \[.*\]
 INFO:root:Scrolling through files to set: \\@none none
+WARNING:root:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
+WARNING:root:Reason: 'utf-8' codec can't decode byte 0xd9 in position \d+: invalid continuation byte
+WARNING:root:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
+WARNING:root:Reason: 'utf-8' codec can't decode byte .* in position \d+: invalid continuation byte
+WARNING:root:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
+WARNING:root:Reason: 'utf-8' codec can't decode byte .* in position \d+: invalid continuation byte
 WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooLarge10kB.dat
 WARNING:root:Reason: File exceeds kB size limit of 10
 WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooManyLines.dat
@@ -327,7 +337,7 @@ INFO:root:Finished in \d+.\d+ s"""
         self.assertTrue(test_regex(reRegressionMatch, logStr))
 
 
-#@unittest.skip("Skipping for debug")
+@unittest.skip("Skipping for debug")
 class TestSets(unittest.TestCase):
     """Run through Test Sets and verify output"""
 

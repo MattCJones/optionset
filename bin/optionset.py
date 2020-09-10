@@ -18,6 +18,7 @@ from contextlib import contextmanager
 from fnmatch import fnmatch
 from functools import wraps
 from pprint import pformat
+from sys import argv
 from sys import exit
 from time import time
 
@@ -26,12 +27,21 @@ START_TIME = time()
 
 ## Set up input argument parser
 BASENAME = os.path.basename(__file__)
-DESCRIPTION = f"""
+BASHCOMPCMD = 'os'  # bash-completion run command
+RUNCMD = BASHCOMPCMD if '--bashcompletion' in argv else BASENAME
+LOG_PATH = f'.log.{BASENAME}'
+BASHCOMP_PATH = "~/.optionsetcompletion.sh"
+SHORT_DESCRIPTION = f"""
 This program enables and disables user-predefined options in text-based code
 and dictionary files in the base directory and below.  The user specifies the
 lines in the files that will either be enabled or disabled by adding macro
-commands as commented text.  For example, the OpenFOAM dictionary text file
-'system/controlDict' could be written as,
+commands as commented text.
+"""
+SHORT_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
+Run '{RUNCMD} --morehelp' to view more-detailed help"""
+LONG_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
+For example, the OpenFOAM dictionary text file 'system/controlDict' could be
+written as,
 
 application pimpleFoam // @simulation transient
 //application simpleFoam // @simulation steady
@@ -39,7 +49,7 @@ application pimpleFoam // @simulation transient
 This setup allows the user to easily switch between transient and steady
 simulations without manually editting the file.  Simply run,
 
-{BASENAME} @simulation steady
+{RUNCMD} @simulation steady
 
 and the dictionary file will be modified and re-written as,
 
@@ -53,8 +63,8 @@ be composed of alphanumerical words with dots, pluses, minuses, and underscores.
 Note that the first one or more characters in a option must be a special symbol
 (non-bracket, non-comment-indicator, non-option/setting) such as '~`!@$%^&|\\?'.
 
-Use '{BASENAME} -a ' to view all of the options that you have set, or even
-'{BASENAME} -a @simple' to view all options that begin with '@simple'.
+Use '{RUNCMD} -a ' to view all of the options that you have set, or even
+'{RUNCMD} -a @simple' to view all options that begin with '@simple'.
 
 To avoid comment clutter, multi-line options are encouraged by writing * in
 front of the first and last options in a series (see text on left),
@@ -71,18 +81,23 @@ that matches the desired text to be changed such as,
 
 variable option = 5.5; // @varOption ='= (.*);'
 
-To change 'variable option' to 6.7 use, '{BASENAME} @varOption 6.7'. The file becomes,
+To change 'variable option' to 6.7 use, '{RUNCMD} @varOption 6.7'. The file becomes,
 
 variable option = 6.7; // @varOption ='= (.*);'
+
+To enable Bash tab completion add the following line to '~/.bashrc':
+function os {{ optionset.py "$@" --bashcompletion; source {BASHCOMP_PATH}; }}
+and run this program using '{BASHCOMPCMD}' instead of '{BASENAME}'
 
 Using your favorite scripting language, it is convenient to glue this program
 into more advanced option variation routines to create advanced parameter
 sweeps and case studies.
 """
+EPILOG = ""  # display after argument help
 
 parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=DESCRIPTION)
+        prog=RUNCMD, description=SHORT_HELP_DESCRIPTION, epilog=EPILOG)
 parser.add_argument(
         'option', metavar='option', nargs='?', type=str, default="",
         help='\'option\' name')
@@ -91,22 +106,35 @@ parser.add_argument(
         help='\'setting\' for given \'option\'')
 parser.add_argument(
         '-a', '--available', dest='available', default=False, action='store_true',
-        help=('show available option-setting combinations. '
-            'Allows for unix-style regular expression searching'))
+        help=("show available option-setting combinations - "
+            "allows for unix-style glob-expression searching"))
 parser.add_argument(
         '-v', '--verbose', dest='verbose', default=False, action='store_true',
-        help='turn on verbose output')
+        help="turn on verbose output")
 parser.add_argument(
         '-q', '--quiet', dest='quiet', default=False, action='store_true',
-        help='turn off all standard output')
+        help="turn off all standard output")
 parser.add_argument(
         '-d', '--debug', dest='debug', default=False, action='store_true',
-        help='turn on debug output in log file')
+        help="turn on debug output in log file")
+parser.add_argument(
+        '-H', '--morehelp', dest='morehelp', default=False, action='store_true',
+        help=f"print detailed help")
+parser.add_argument(
+        '--nolog', dest='nolog', default=False, action='store_true',
+        help=f"do not write log file '{LOG_PATH}'")
+parser.add_argument('--bashcompletion', dest='bashcompletion', default=False,
+        action='store_true',
+        help=f"auto-generate bash-completion script '{BASHCOMP_PATH}'")  #, help=argparse.SUPPRESS)
+
 args = parser.parse_args()
 
+if args.morehelp:
+    parser.description = LONG_HELP_DESCRIPTION
+    parser.print_help()
+    exit()
+
 ## Set up logging
-RUNCMD = BASENAME
-LOG_PATH = f'.log.{BASENAME}'
 LOG_LEVEL = 'DEBUG' if args.debug else 'INFO'
 if os.path.exists(LOG_PATH):
     os.remove(LOG_PATH)
@@ -115,7 +143,8 @@ logging.basicConfig(filename=LOG_PATH, level=LOG_LEVEL)
 ## Initialize global variables
 IGNORE_DIRS = {'processor[0-9]*', '.git', '[0-9]', '[0-9][0-9]*', '[0-9].[0-9]*',
         'triSurface', 'archive', 'sets', 'log', 'logs', 'trash',}  # UNIX-based wild cards
-IGNORE_FILES = {BASENAME, LOG_PATH, '.*', 'log.*', '*.log', '*.py', '*.pyc',
+IGNORE_FILES = {BASENAME, f"{os.path.splitext(BASENAME)[0]}*", LOG_PATH,
+        '.*', 'log.*', '*.log', '*.py', '*.pyc',
         '*.gz', 'faces', 'neighbour', 'owner', 'points*', 'buildTestMatrix',
         '*.png', '*.jpg', '*.obj', '*.stl', '*.stp', '*.step', }
 MAX_FLINES = 9999  # maximum lines per file
@@ -134,11 +163,9 @@ ANY_TAG = f'(?:(?!\s|{ANY_COMMENT_IND}|{MULTI_TAG}|{ANY_WORD}|{BRACKETS}).)'  # 
 #ANY_TAG = r'[~`!@$^&\\\?\|]'  # explicitely set
 WHOLE_COMMENT = (r'(?P<comInd>{comInd})'
     r'(?P<wholeCom>.*\s+{mtag}*{tag}+{option}\s+{setting}\s.*\n?)')
-#UNCOMMENTED_LINE = r'(?P<nonCom>^\s*(?:(?!{comInd}).)+)' + WHOLE_COMMENT
-#COMMENTED_LINE = r'(?P<nonCom>^\s*{comInd}(?:(?!{comInd}).)+)' + WHOLE_COMMENT
 UNCOMMENTED_LINE = r'^(?P<nestedComInds>{nestedComInds})(?P<nonCom>\s*(?:(?!{comInd}).)+)' + WHOLE_COMMENT
 COMMENTED_LINE = r'^(?P<nestedComInds>{nestedComInds})(?P<nonCom>\s*{comInd}(?:(?!{comInd}).)+)' + WHOLE_COMMENT
-ONLY_TAG_GROUP_SETTING = r'({mtag}*)({tag}+)({option})\s+({setting})\s'
+ONLY_TAG_GROUP_SETTING = r'({mtag}*)({tag}+)({option})\s+({setting})\s?'
 GENERIC_RE_VARS = {'comInd':ANY_COMMENT_IND, 'mtag':MULTI_TAG, 'tag':ANY_TAG,
         'option':ANY_OPTION, 'setting':ANY_SETTING, 'nestedComInds':''}
 
@@ -640,9 +667,9 @@ def parse_and_check_input(args):
             with handle_errors(errTypes=AttributeError, msg=INVALID_SETTING_MSG):
                 setting = re.search(f"(^{VALID_INPUT_SETTING}$)", args.setting).group(0)
             # Check if option is formatted correctly
-            checkTagOptionRe = re.compile(f"^({ANY_TAG}+)({ANY_WORD})")
+            checkTagOptionRe = re.compile("^({mtag}*)({tag}+)({option})$".format(**GENERIC_RE_VARS))
             with handle_errors(errTypes=(AttributeError), msg=INVALID_OPTION_MSG):
-                tag, option = checkTagOptionRe.search(args.option).groups()
+                mtag, tag, option = checkTagOptionRe.search(args.option).groups()
             literalTag = ''.join([f'\{s}' for s in tag])  # read as literal symbols
             return UserInput(tag=literalTag, option=option, setting=setting)
     #else: # pre-2020-09-08 functionality
