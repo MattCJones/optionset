@@ -20,6 +20,7 @@ SOL_DIR_B = f"{ARCHIVE_DIR}/solSetB"
 SOL_DIR_C = f"{ARCHIVE_DIR}/solSetC"
 SOL_DIR_D = f"{ARCHIVE_DIR}/solSetD"
 
+F_skipTestSets = False
 
 def ut_print(*args, **kwargs):
     """Print that takes into account verbosity level of test suite"""
@@ -337,7 +338,7 @@ INFO:root:Finished in \d+.\d+ s"""
         self.assertTrue(test_regex(reRegressionMatch, logStr))
 
 
-@unittest.skip("Skipping for debug")
+@unittest.skipIf(F_skipTestSets, "Skipping test sets")
 class TestSets(unittest.TestCase):
     """Run through Test Sets and verify output"""
 

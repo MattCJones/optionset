@@ -13,7 +13,7 @@ import logging
 import os
 import re
 #import pdb; pdb.set_trace()
-from collections import defaultdict, namedtuple, OrderedDict # , deque
+from collections import defaultdict, namedtuple, OrderedDict
 from contextlib import contextmanager
 from fnmatch import fnmatch
 from functools import wraps
@@ -225,37 +225,36 @@ class FileFlags:
         self.nestedLvl = nestedLvl
 
 ## Define utility functions
-def print_available(db, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_MSG):
+def print_available(dbOps, dbVarOps, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_MSG):
     """Print available options and options for use; optionally sort with unix regex. """
-    if headerMsg:
-        if globPat != '*':
-            matchMsg = f"\nMatching glob regular expression: '{globPat}'"
-        else:
-            matchMsg = ""
-        print_and_log(headerMsg.format(matchMsg=matchMsg))
-    logging.info(pformat(db, indent=1))
-    for item in sorted(db.items()):
-        if not fnmatch(item[0], globPat):
-            continue
-        optionStr = item[0]
-        print_and_log(f"  {optionStr}")
-        for subItem in sorted(item[1].items()):
-            settingStr = subItem[0]
-            if subItem[1] is True:
-                leftStr, rightStr = '>', '<'
-            elif subItem[1] is False:
-                leftStr, rightStr = ' ', ' '
-            elif subItem[1] is None:
-                leftStr, rightStr = ' ', ' '
-            elif subItem[1] is not None:
-                leftStr, rightStr = subItem[1], subItem[1]
-            else:
-                leftStr, rightStr = '?', '?'
-            print_and_log(f"\t{leftStr} {settingStr} {rightStr}")
+    matchMsg = f"\nMatching glob regular expression: '{globPat}'"
+    print_and_log(headerMsg.format(matchMsg=matchMsg))
+    for db in (dbOps, dbVarOps):
+        logging.info(pformat(db, indent=1))
+        for item in sorted(db.items()):
+            if not fnmatch(item[0], globPat):
+                continue
+            optionStr = item[0]
+            print_and_log(f"  {optionStr}")
+            for subItem in sorted(item[1].items()):
+                settingStr = subItem[0]
+                if subItem[1] is True:
+                    leftStr, rightStr = '>', '<'
+                elif subItem[1] is False:
+                    leftStr, rightStr = ' ', ' '
+                elif subItem[1] is None:
+                    leftStr, rightStr = ' ', ' '
+                elif subItem[1] is not None:
+                    leftStr, rightStr = subItem[1], subItem[1]
+                else:
+                    leftStr, rightStr = '?', '?'
+                print_and_log(f"\t{leftStr} {settingStr} {rightStr}")
 
 def write_bashcompletion_file(dbOps, dbVarOps, bashcompPath):
     """Write file that can be sourced to enable tab completion for this tool. """
     fileContentsTemplate = """#!/bin/bash
+# Auto-generated Bash completion settings for {baseRunCmd}
+# Run 'source {bashcompPath}' to enable
 optRegex="\-[a-z], --[a-z]*"
 defaultOptions=`{baseRunCmd} --help | grep "$optRegex" | tr -d ',' | tr -s ' ' | cut -d ' ' -f2,3`
 _{bashcompCmd}()
@@ -284,34 +283,26 @@ complete -F _{bashcompCmd} {bashcompCmd}"""
     gatheredOptionsStr = ""
     optionsWithSettingsTemplate = """
                 '{optionStr}')
-                    COMPREPLY=($(compgen -W "{settingsStr}" -- ${{cur}}))
+                    COMPREPLY=($(compgen -W "'{settingsStr}'" -- ${{cur}}))
                     ;;"""
     optionsWithSettingsStr = ""
     bashcompCmd = BASHCOMPCMD
     baseRunCmd = BASENAME
 
-    for item in sorted(dbOps.items()):
-        optionStr = item[0]
-        gatheredOptionsStr +=  os.linesep + "                " + f"'{optionStr}'"
-        settingsStr = ""
-        for subItem in sorted(item[1].items()):
-            settingStr = subItem[0]
-            settingsStr += " " + settingStr
-        optionsWithSettingsStr += optionsWithSettingsTemplate.format(**locals())
-
-    for item in sorted(dbVarOps.items()):
-        optionStr = item[0]
-        gatheredOptionsStr +=  os.linesep + "                " + f"'{optionStr}'"
-        settingsStr = ""
-        for subItem in sorted(item[1].items()):
-            settingStr = subItem[0]
-            settingsStr += " " + settingStr
-        optionsWithSettingsStr += optionsWithSettingsTemplate.format(**locals())
+    for db in (dbOps, dbVarOps):
+        for item in sorted(db.items()):
+            optionStr = item[0]
+            gatheredOptionsStr +=  os.linesep + "                " + f"'{optionStr}'"
+            settingsStr = ""
+            for subItem in sorted(item[1].items()):
+                settingStr = subItem[0]
+                settingsStr += " " + settingStr
+            optionsWithSettingsStr += optionsWithSettingsTemplate.format(**locals())
 
     fileContents = fileContentsTemplate.format(**locals())
 
     with open(bashcompPath, 'w', encoding='UTF-8') as file:
-        print_and_log(f"Writing to {bashcompPath}")
+        logging.info(f"Writing bashcompletion settings to {bashcompPath}")
         file.writelines(fileContents)
 
 def log_before_after_commenting(func):
@@ -501,8 +492,7 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
             newLines[idx] = line
             lineNum = idx + 1
             fFlags.nestedLvl += nestedIncrement
-            nestedIncrement = 0 # reset
-            #print(f"DEBUG_{fFlags.nestedLvl:2}_{str(fFlags.F_multiLineActive)[0]}_{line[:-1]}")
+            nestedIncrement = 0  # reset
             logging.debug(f"LINE[{lineNum}](L{fFlags.nestedLvl:1},"
                     f"{str(fFlags.F_multiLineActive)[0]}):{line[:-1]}")
             genericReVars['nestedComInds'] = f"\s*{comInd}"*fFlags.nestedLvl
@@ -561,7 +551,7 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                     if fFlags.F_commented:
                         nestedOptionDb[fFlags.nestedLvl] = tag+option
                         nestedIncrement = 1
-                    else: # uncommented
+                    else:  # uncommented
                         if len(nestedOptionDb) < 1:
                             pass
                         elif nestedOptionDb[fFlags.nestedLvl-1] == tag+option:
@@ -590,7 +580,7 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                         allOptionsSettings[tag+option][setting] = '?'  # ambiguous
                     else:
                         pass
-                else: # modify line based on user input
+                else:  # modify line based on user input
                     if ((userInput.tag+userInput.option).replace('\\', '') == tag+option):  # match input tag+option
                         if fFlags.F_commented:  # commented line
                             if (userInput.setting == setting):  # match input setting
@@ -606,7 +596,7 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                                     fFlags.F_multiCommented = None
                             else:  # setting does not match
                                 pass
-                        else: # uncommented line
+                        else:  # uncommented line
                             if re.search(ANY_VAR_SETTING, setting):
                                 # If variable option, use user-supplied regex to modify line
                                 strToReplace = parse_inline_regex(nonCom, setting, varErrMsg)
@@ -748,9 +738,7 @@ def main(args):
 
     if args.available:
         globPat = '*' if args.option is None else f"{args.option}*"
-        print_available(tagsOptionsSettings, globPat=globPat)
-        if len(varOptions) > 0:
-            print_available(varOptions, globPat=globPat, headerMsg=None)
+        print_available(tagsOptionsSettings, varOptions, globPat=globPat)
         if args.bashcompletion:
             write_bashcompletion_file(tagsOptionsSettings, varOptions, BASHCOMP_PATH)
 
