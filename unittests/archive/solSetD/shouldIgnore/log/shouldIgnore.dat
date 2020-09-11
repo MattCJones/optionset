@@ -1,0 +1,3 @@
+# File in log directory
+This should be ignored # @shouldIgnoreLogDir a
+#This also should be ignored # @shouldIgnoreLogDir b

@@ -1,0 +1,3 @@
+# .step file
+This should be ignored # @shouldIgnoreSTEP a
+#This also should be ignored # @shouldIgnoreSTEP b

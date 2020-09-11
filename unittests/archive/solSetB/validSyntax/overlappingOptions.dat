@@ -1,0 +1,32 @@
+# File to demonstrate use of overlapping options
+# Goal is to have overlapped option lines to not register as active
+
+Code here for options a and b # @overlappingOption a @overlappingOption b
+#Code here for just a # @overlappingOption a
+Code here for just b # @overlappingOption b
+#Code here for just c # @overlappingOption c
+
+Code here for options a and b # @overlappingOptionShort a @overlappingOptionShort b
+#Code here for c # @overlappingOptionShort c
+
+############################################################
+
+Code here for # *@overlappingMultiline a *@overlappingMultiline b
+multilines a and b 1
+multilines a and b 2
+multilines a and b 3
+options a and b # *@overlappingMultiline a *@overlappingMultiline b
+
+#Code here for # *@overlappingMultiline a
+#just multiline a
+#options a # *@overlappingMultiline a
+
+Code here for # *@overlappingMultiline b
+just multiline b
+options b # *@overlappingMultiline b
+
+#Code here for # *@overlappingMultiline c
+#just multiline c
+#options c # *@overlappingMultiline c
+
+End of file

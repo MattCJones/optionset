@@ -1,0 +1,3 @@
+# .png file
+This should be ignored # @shouldIgnorePNG a
+#This also should be ignored # @shouldIgnorePNG b

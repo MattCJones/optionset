@@ -1,0 +1,4 @@
+// File with inconsistent comment indicators
+
+This is a valid options with the wrong comment indicator # @ambiguousComments ERROR
+This is a valid options with the wrong comment indicator # @ambiguousComments ERROR_b

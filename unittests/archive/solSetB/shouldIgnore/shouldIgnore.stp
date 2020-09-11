@@ -1,0 +1,3 @@
+# .stp file
+This should be ignored # @shouldIgnoreSTP a
+#This also should be ignored # @shouldIgnoreSTP b

@@ -1,0 +1,3 @@
+# .obj file
+This should be ignored # @shouldIgnoreOBJ a
+#This also should be ignored # @shouldIgnoreOBJ b

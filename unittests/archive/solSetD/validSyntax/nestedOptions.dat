@@ -1,0 +1,20 @@
+# File to demonstrate use of nested options
+
+Starting in level 0
+
+Lvl 0 # @nestedL0 a
+#Lvl 0 # *@nestedL0 b
+#    Entering level 1
+##    Lvl 1 # @nestedL1 a
+#    Lvl 1 # *@nestedL1 b
+#        Entering level 2
+#        Lvl 2 # @nestedL2 a
+##        Lvl 2 # *@nestedL2 b
+##            Entering level 3
+##
+##            myVar = C -12.34E-5 # @nestedVarOp ='myVar = (.*) '
+##        Lvl 2 # *@nestedL2 b
+#    Lvl 1 # *@nestedL1 b
+#Lvl 0 # *@nestedL0 b
+
+Ending in level 0

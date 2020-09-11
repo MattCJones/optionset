@@ -1,0 +1,3 @@
+# Log file
+This should be ignored # @shouldIgnoreLogFile a
+#This also should be ignored # @shouldIgnoreLogFile b

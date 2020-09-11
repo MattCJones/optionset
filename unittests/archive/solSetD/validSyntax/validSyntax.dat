@@ -1,0 +1,12 @@
+# File to demonstrate examples of valid syntax
+
+#Sentence with 1`~!@$%^^&*()_+-={}[]:";'<>,./?\| odd symbols # @validSyntax difficultLine
+#1`~!@$%^^&*()_+-={}[]:";'<>,./?\| Sentence with odd symbols # @validSyntax difficultLine
+
+Valid # 1`~!@$%^^&*()_+-={}[]:";'<>,./?\| blah @validSyntax difficultComments word @difficultPlacement a @fake op # word
+Valid # word @validSyntax difficultComments # 1`~!@$%^^&*()_+-={}[]:";'<>,./?\|
+
+Valid multiple comment indicator # ~@$^&multipleTags a
+#Valid multiple comment indicator # ~@$^&multipleTags b
+
+#Multi-file option in file # @multiFile singleLine

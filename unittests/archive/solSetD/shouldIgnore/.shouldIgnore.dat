@@ -1,0 +1,3 @@
+# Hidden dot file
+This should be ignored # @shouldIgnoreDotFile a
+#This also should be ignored # @shouldIgnoreDotFile b
