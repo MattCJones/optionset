@@ -30,7 +30,7 @@ BASENAME = os.path.basename(__file__)
 BASHCOMPCMD = 'os'  # bash-completion run command
 RUNCMD = BASHCOMPCMD if '--bashcompletion' in argv else BASENAME
 LOG_PATH = f'.log.{BASENAME}'
-BASHCOMP_PATH = "~/.optionsetcompletion.sh"
+BASHCOMP_PATH = f"{os.path.expanduser('~')}/.optionsetcompletion.sh"
 SHORT_DESCRIPTION = f"""
 This program enables and disables user-predefined options in text-based code
 and dictionary files in the base directory and below.  The user specifies the
@@ -157,7 +157,8 @@ ANY_COMMENT_IND = r'(?:[#%!]|//|--)'  # comment indicators: # % // -- !
 MULTI_TAG = r'[*]'  # for multi-line commenting
 ANY_WORD = r'[\+a-zA-Z0-9._\-]+'
 ANY_OPTION = ANY_WORD
-ANY_VAR_SETTING = r'\={quote}.+{quote}'.format(quote=r'[\'"]')
+ANY_QUOTE = r'[\'"]'
+ANY_VAR_SETTING = f'\={ANY_QUOTE}.+{ANY_QUOTE}'
 ANY_SETTING = f'(?:{ANY_WORD}|{ANY_VAR_SETTING})'
 VALID_INPUT_SETTING = f'(?: |{ANY_WORD})+'  # words with spaces (using '')
 BRACKETS = r'[()<>\[\]]'
@@ -236,8 +237,10 @@ def print_available(db, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_MSG):
     for item in sorted(db.items()):
         if not fnmatch(item[0], globPat):
             continue
-        print_and_log(f"  {item[0]}")
+        optionStr = item[0]
+        print_and_log(f"  {optionStr}")
         for subItem in sorted(item[1].items()):
+            settingStr = subItem[0]
             if subItem[1] is True:
                 leftStr, rightStr = '>', '<'
             elif subItem[1] is False:
@@ -248,17 +251,68 @@ def print_available(db, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_MSG):
                 leftStr, rightStr = subItem[1], subItem[1]
             else:
                 leftStr, rightStr = '?', '?'
-            print_and_log(f"\t{leftStr} {subItem[0]} {rightStr}")
+            print_and_log(f"\t{leftStr} {settingStr} {rightStr}")
 
-#def multi_line_logic(mtag, fFlags):
-#    """Set multi-line flags based on current conditions. """
-#    if mtag and not fFlags.F_multiLineActive:
-#        fFlags.F_multiLineActive = True
-#        fFlags.F_multiCommented = fFlags.F_commented
-#    elif mtag and fFlags.F_multiLineActive:
-#        fFlags.F_multiLineActive = False
-#        fFlags.F_multiCommented = None
-#    return fFlags
+def write_bashcompletion_file(dbOps, dbVarOps, bashcompPath):
+    """Write file that can be sourced to enable tab completion for this tool. """
+    fileContentsTemplate = """#!/bin/bash
+optRegex="\-[a-z], --[a-z]*"
+defaultOptions=`{baseRunCmd} --help | grep "$optRegex" | tr -d ',' | tr -s ' ' | cut -d ' ' -f2,3`
+_{bashcompCmd}()
+{{
+    local cur prev
+
+    cur=${{COMP_WORDS[COMP_CWORD]}}
+    prev=${{COMP_WORDS[COMP_CWORD-1]}}
+
+    case ${{COMP_CWORD}} in
+        1)
+            COMPREPLY=($(compgen -W "
+                $defaultOptions {gatheredOptionsStr}
+                " -- ${{cur}}))
+            ;;
+        2)
+            case ${{prev}} in {optionsWithSettingsStr}
+            esac
+            ;;
+        *)
+            COMPREPLY=()
+            ;;
+    esac
+}}
+complete -F _{bashcompCmd} {bashcompCmd}"""
+    gatheredOptionsStr = ""
+    optionsWithSettingsTemplate = """
+                '{optionStr}')
+                    COMPREPLY=($(compgen -W "{settingsStr}" -- ${{cur}}))
+                    ;;"""
+    optionsWithSettingsStr = ""
+    bashcompCmd = BASHCOMPCMD
+    baseRunCmd = BASENAME
+
+    for item in sorted(dbOps.items()):
+        optionStr = item[0]
+        gatheredOptionsStr +=  os.linesep + "                " + f"'{optionStr}'"
+        settingsStr = ""
+        for subItem in sorted(item[1].items()):
+            settingStr = subItem[0]
+            settingsStr += " " + settingStr
+        optionsWithSettingsStr += optionsWithSettingsTemplate.format(**locals())
+
+    for item in sorted(dbVarOps.items()):
+        optionStr = item[0]
+        gatheredOptionsStr +=  os.linesep + "                " + f"'{optionStr}'"
+        settingsStr = ""
+        for subItem in sorted(item[1].items()):
+            settingStr = subItem[0]
+            settingsStr += " " + settingStr
+        optionsWithSettingsStr += optionsWithSettingsTemplate.format(**locals())
+
+    fileContents = fileContentsTemplate.format(**locals())
+
+    with open(bashcompPath, 'w', encoding='UTF-8') as file:
+        print_and_log(f"Writing to {bashcompPath}")
+        file.writelines(fileContents)
 
 def log_before_after_commenting(func):
     """Wrapper to add file modifications to the log file. """
@@ -520,6 +574,8 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                             if inlineSettingMatch[tag+option]:  # match input setting
                                 newLines[idx] = uncomment(line, comInd, lineNum)
                             continue
+                else:
+                    pass
                 if F_getAvailable:  # build database of available options
                     # Determine active, inactive, and simultaneous options
                     if re.search(ANY_VAR_SETTING, setting) and not fFlags.F_commented:
@@ -532,6 +588,8 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                             allOptionsSettings[tag+option][setting] = (not fFlags.F_commented)
                     elif allOptionsSettings[tag+option][setting] != (not fFlags.F_commented):
                         allOptionsSettings[tag+option][setting] = '?'  # ambiguous
+                    else:
+                        pass
                 else: # modify line based on user input
                     if ((userInput.tag+userInput.option).replace('\\', '') == tag+option):  # match input tag+option
                         if fFlags.F_commented:  # commented line
@@ -548,9 +606,6 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                                     fFlags.F_multiCommented = None
                             else:  # setting does not match
                                 pass
-                            #    if mtag and fFlags.F_multiLineActive:
-                            #        fFlags.F_multiLineActive = False
-                            #        fFlags.F_multiCommented = None
                         else: # uncommented line
                             if re.search(ANY_VAR_SETTING, setting):
                                 # If variable option, use user-supplied regex to modify line
@@ -581,6 +636,8 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
                                     pass
                             else:
                                 pass
+                    else:
+                        pass
 
     # Write file
     if fFlags.F_fileModified:
@@ -609,17 +666,15 @@ def scroll_through_files(validFiles, userInput, F_getAvailable):
                 "{i.tag}{i.option} {i.setting}").format(i=userInput))
 
     for validFile in validFiles:
-        F_processed = process_file(validFile, userInput, F_getAvailable,
+        F_fileChanged = process_file(validFile, userInput, F_getAvailable,
                 allOptionsSettings, allVariableOptions)
-        if F_processed:
+        if F_fileChanged:
             F_changesMade = True
 
-    if F_getAvailable:
-        # Cut out options with a singular setting. Could try filter() here
-        reducedOptionsSettings = { tg:n for tg,n in allOptionsSettings.items() if len(n) > 1}
-        return reducedOptionsSettings, allVariableOptions
-    else:
-        return F_changesMade
+    # Cut out options with a singular setting. Could try filter() here
+    reducedOptionsSettings = { tg:n for tg,n in allOptionsSettings.items() if len(n) > 1}
+
+    return reducedOptionsSettings, allVariableOptions, F_changesMade
 
 def fn_compare(globSet, compareArray):
     """Compare set with unix * expressions with array of files or directories. """
@@ -674,44 +729,33 @@ def parse_and_check_input(args):
                 mtag, tag, option = checkTagOptionRe.search(args.option).groups()
             literalTag = ''.join([f'\{s}' for s in tag])  # read as literal symbols
             return UserInput(tag=literalTag, option=option, setting=setting)
-    #else: # pre-2020-09-08 functionality
-    #    # Check if both a option and a setting were input
-    #    if (args.setting == '') and (args.option == ''):
-    #        parser.print_usage()
-    #        print_and_log(INCOMPLETE_INPUT_MSG)
-    #        exit()
-    #    # Check if setting is formatted correctly
-    #    with handle_errors(errTypes=AttributeError, msg=INVALID_SETTING_MSG):
-    #        setting = re.search(f"(^{VALID_INPUT_SETTING}$)", args.setting).group(0)
-    #    # Check if option is formatted correctly
-    #    checkTagOptionRe = re.compile(f"({ANY_TAG}+)({ANY_WORD})")
-    #    with handle_errors(errTypes=(AttributeError), msg=INVALID_OPTION_MSG):
-    #        tag, option = checkTagOptionRe.search(args.option).groups()
-    #    literalTag = ''.join([f'\{s}' for s in tag])  # read as literal symbols
-    #    return UserInput(tag=literalTag, option=option, setting=setting)
 
 def main(args):
     """Main function. """
     logging.info("Executing main function")
+
     logging.info("Checking input options")
     userInput = parse_and_check_input(args)
     logging.info(f"<tag><option> <setting> = "
             f"{userInput.tag}{userInput.option} {userInput.setting}")
+
     logging.info("Generating valid files")
     validFiles = list(gen_valid_files())  # can run as generator
     logging.info(f"Valid files: {validFiles}")
+
+    tagsOptionsSettings, varOptions, F_changesMade = scroll_through_files(
+            validFiles, userInput=userInput, F_getAvailable=args.available)
+
     if args.available:
-        tagsOptionsSettings, varOptions = scroll_through_files(validFiles,
-                userInput=userInput, F_getAvailable=True)
         globPat = '*' if args.option is None else f"{args.option}*"
         print_available(tagsOptionsSettings, globPat=globPat)
         if len(varOptions) > 0:
             print_available(varOptions, globPat=globPat, headerMsg=None)
-    else:
-        F_changesMade = scroll_through_files(validFiles,
-                userInput=userInput, F_getAvailable=False)
-        if F_changesMade:
-            print_and_log(f"See all modifications in {LOG_PATH}")
+        if args.bashcompletion:
+            write_bashcompletion_file(tagsOptionsSettings, varOptions, BASHCOMP_PATH)
+
+    if F_changesMade:
+        print_and_log(f"See all modifications in {LOG_PATH}")
 
     print_and_log(f"Finished in {(time()-START_TIME):1.5f} s")
 
