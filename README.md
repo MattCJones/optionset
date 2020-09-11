@@ -25,7 +25,7 @@ The easiest way to install optionset is the Python package-manager `pip`:
 
 Learn about the tool with the built-in help command:
     
-    optionset.py -h
+    optionset.py --fullhelp
 
 # License
 

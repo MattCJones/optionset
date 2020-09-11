@@ -12,14 +12,12 @@ import argparse
 import logging
 import os
 import re
-#import pdb; pdb.set_trace()
 from collections import defaultdict, namedtuple, OrderedDict
 from contextlib import contextmanager
 from fnmatch import fnmatch
 from functools import wraps
 from pprint import pformat
-from sys import argv
-from sys import exit
+from sys import argv, exit
 from time import time
 
 ## Time program
@@ -38,7 +36,7 @@ lines in the files that will either be enabled or disabled by adding macro
 commands as commented text.
 """
 SHORT_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
-Run '{RUNCMD} --morehelp' to view more-detailed help"""
+Run '{RUNCMD} --fullhelp' to view more-detailed help"""
 LONG_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
 For example, the OpenFOAM dictionary text file 'system/controlDict' could be
 written as,
@@ -118,7 +116,7 @@ parser.add_argument(
         '-d', '--debug', dest='debug', default=False, action='store_true',
         help="turn on debug output in log file")
 parser.add_argument(
-        '-H', '--morehelp', dest='morehelp', default=False, action='store_true',
+        '-H', '--fullhelp', dest='fullhelp', default=False, action='store_true',
         help=f"print detailed help")
 parser.add_argument(
         '--nolog', dest='nolog', default=False, action='store_true',
@@ -129,7 +127,7 @@ parser.add_argument('--bashcompletion', dest='bashcompletion', default=False,
 
 args = parser.parse_args()
 
-if args.morehelp:
+if args.fullhelp:
     parser.description = LONG_HELP_DESCRIPTION
     parser.print_help()
     exit()
@@ -224,6 +222,7 @@ class FileFlags:
         self.F_freezeChanges = F_freezeChanges
         self.nestedLvl = nestedLvl
 
+
 ## Define utility functions
 def print_available(dbOps, dbVarOps, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_MSG):
     """Print available options and options for use; optionally sort with unix regex. """
@@ -249,6 +248,7 @@ def print_available(dbOps, dbVarOps, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_
                 else:
                     leftStr, rightStr = '?', '?'
                 print_and_log(f"\t{leftStr} {settingStr} {rightStr}")
+
 
 def write_bashcompletion_file(dbOps, dbVarOps, bashcompPath):
     """Write file that can be sourced to enable tab completion for this tool. """
@@ -305,6 +305,7 @@ complete -F _{bashcompCmd} {bashcompCmd}"""
         logging.info(f"Writing bashcompletion settings to {bashcompPath}")
         file.writelines(fileContents)
 
+
 def log_before_after_commenting(func):
     """Wrapper to add file modifications to the log file. """
     @wraps(func)
@@ -321,17 +322,20 @@ def log_before_after_commenting(func):
         return returnStr
     return log
 
+
 @log_before_after_commenting
 def uncomment(line, comInd, lineNum):
     """Uncomment a line. Input requires comment indicator string. """
     line = re.sub(f'^(\s*)({comInd})', r"\1", line)
     return line
 
+
 @log_before_after_commenting
 def comment(line, comInd, lineNum):
     """Comment a line. Input requires comment indicator string. """
     line = comInd + line
     return line
+
 
 def check_varop_groups(reStr):
     """Calculate the number of regex groups designated by (). """
@@ -348,6 +352,7 @@ def check_varop_groups(reStr):
             specificProblem='No regex groups found.\r\n'))
         raise AttributeError
 
+
 def add_left_right_groups(inLineRe):
     """Add left and right groups to regex.
     For example: \( (.*) 0 0 \) becomes (\( )(.*)( 0 0 \)) """
@@ -360,6 +365,7 @@ def add_left_right_groups(inLineRe):
     right = inLineRe[rightParenInd + 1:]
     newInLineRe = f"({left}){mid}({right})"
     return newInLineRe
+
 
 @log_before_after_commenting
 def set_var_option(line, comInd, lineNum, strToReplace, setting, nestedComInds, nonCom, wholeCom):
@@ -378,10 +384,12 @@ def set_var_option(line, comInd, lineNum, strToReplace, setting, nestedComInds, 
     newLine = nestedComInds + newNonCom + comInd + wholeCom
     return newLine
 
+
 def skip_file_warning(fileName, reason):
     """Log a warning that the current file is being skipped. """
     logging.warning(f"Skipping: {fileName}")
     logging.warning(f"Reason: {reason}")
+
 
 def yield_utf8(file):
     """Yield file lines only if they are UTF-8 encoded (non-binary). """
@@ -390,6 +398,7 @@ def yield_utf8(file):
             yield line
     except UnicodeDecodeError as err:
         skip_file_warning(file.name, err)
+
 
 def line_count(fileName, lineLimit):
     """Return number of lines in a file unless file exceeds line limit. """
@@ -400,6 +409,7 @@ def line_count(fileName, lineLimit):
             if lineCount > lineLimit:
                 return lineCount + 1  # return line limit +1 if line-count exheeds
     return lineCount
+
 
 def get_comment_indicator(fileName):
     """Get comment indicator from fileName ('#', '//', or' %'). """
@@ -639,7 +649,6 @@ def process_file(validFile, userInput, F_getAvailable, allOptionsSettings,
         return False
 
 
-
 def scroll_through_files(validFiles, userInput, F_getAvailable):
     """Scroll through files, line by line. This function:
     * Returns available options if F_getAvailable is enabled.
@@ -666,6 +675,7 @@ def scroll_through_files(validFiles, userInput, F_getAvailable):
 
     return reducedOptionsSettings, allVariableOptions, F_changesMade
 
+
 def fn_compare(globSet, compareArray):
     """Compare set with unix * expressions with array of files or directories. """
     for g in globSet:
@@ -684,6 +694,7 @@ def gen_valid_files():
                 if not fn_compare(IGNORE_FILES, (file,)):
                     yield f"{dirPath}/{file}"
 
+
 def print_and_log(printStr):
     """Print to standard out and INFO level in log. """
     logging.info(printStr)
@@ -699,6 +710,7 @@ def handle_errors(errTypes, msg):
     except errTypes as e:
         print_and_log(msg)
         exit()
+
 
 def parse_and_check_input(args):
     """Parse input arguments. """
@@ -719,6 +731,7 @@ def parse_and_check_input(args):
                 mtag, tag, option = checkTagOptionRe.search(args.option).groups()
             literalTag = ''.join([f'\{s}' for s in tag])  # read as literal symbols
             return UserInput(tag=literalTag, option=option, setting=setting)
+
 
 def main(args):
     """Main function. """
@@ -746,6 +759,7 @@ def main(args):
         print_and_log(f"See all modifications in {LOG_PATH}")
 
     print_and_log(f"Finished in {(time()-START_TIME):1.5f} s")
+
 
 ## Run main function
 if __name__ == '__main__':
