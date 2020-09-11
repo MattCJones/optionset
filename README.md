@@ -1,10 +1,10 @@
 # Table of Contents
 
-1.  [About]
-2.  [Author]
-3.  [Installation]
-4.  [Documentation]
-5.  [License]
+1.  [About](#About)
+2.  [Author](#Author)
+3.  [Installation](#Installation)
+4.  [Documentation](#Documentation)
+5.  [License](#License)
 
 
 # About
