@@ -12,7 +12,9 @@ import sys
 from time import time
 
 RUNAPP = "../bin/optionset.py"  # run the application
-LOG_FILE = ".log.optionset.py"
+BASENAME = "optionset.py"
+AUX_DIR = f"{os.path.expanduser('~')}/.optionset"
+LOG_PATH = f"{AUX_DIR}/log.{BASENAME}"
 FILES_TO_TEST_DIR = "filesToTest"
 ARCHIVE_DIR = "archive"
 SOL_DIR_A = f"{ARCHIVE_DIR}/solSetA"
@@ -313,9 +315,9 @@ class TestIO(unittest.TestCase):
     # Regression test: show that output is unchanged in with new version
     ############################################################
     def test_dotlog_output(self):
-        f"""Test that {LOG_FILE} remains unchanged for basic input"""
+        f"""Test that {LOG_PATH} remains unchanged for basic input"""
         outputStr, _ = run_cmd(f"{RUNAPP} @none none")
-        with open(LOG_FILE, 'r') as file:
+        with open(LOG_PATH, 'r') as file:
             logStr = file.read()
         dotLogReStr = r"""INFO:root:Executing main function
 INFO:root:Checking input options

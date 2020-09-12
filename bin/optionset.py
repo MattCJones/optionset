@@ -26,9 +26,12 @@ START_TIME = time()
 ## Set up input argument parser
 BASENAME = os.path.basename(__file__)
 BASHCOMPCMD = 'os'  # bash-completion run command
+BASHCOMPCMD_B = 'optionset'  # bash-completion run command
 RUNCMD = BASHCOMPCMD if '--bashcompletion' in argv else BASENAME
-LOG_PATH = f'.log.{BASENAME}'
-BASHCOMP_PATH = f"{os.path.expanduser('~')}/.optionsetcompletion.sh"
+AUX_DIR = f"{os.path.expanduser('~')}/.optionset"
+LOG_PATH = f"{AUX_DIR}/log.{BASENAME}"
+BASHCOMP_PATH = f"{AUX_DIR}/bash_completion"
+#BASHCOMP_PATH = f"/etc/bash_completion.d/.optionsetcompletion.sh"
 SHORT_DESCRIPTION = f"""
 This program enables and disables user-predefined options in text-based code
 and dictionary files in the base directory and below.  The user specifies the
@@ -37,7 +40,7 @@ commands as commented text.
 """
 SHORT_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
 Run '{RUNCMD} --fullhelp' to view more-detailed help"""
-LONG_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
+FULL_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
 For example, the OpenFOAM dictionary text file 'system/controlDict' could be
 written as,
 
@@ -84,7 +87,7 @@ To change 'variable option' to 6.7 use, '{RUNCMD} @varOption 6.7'. The file beco
 variable option = 6.7; // @varOption ='= (.*);'
 
 To enable Bash tab completion add the following line to '~/.bashrc':
-function os {{ optionset.py "$@" --bashcompletion; source {BASHCOMP_PATH}; }}
+function {BASHCOMPCMD} {{ {BASENAME} "$@" --bashcompletion; source {BASHCOMP_PATH}; }}
 and run this program using '{BASHCOMPCMD}' instead of '{BASENAME}'
 
 Using your favorite scripting language, it is convenient to glue this program
@@ -103,9 +106,13 @@ parser.add_argument(
         'setting', metavar='setting', nargs='?', type=str, default="",
         help='\'setting\' for given \'option\'')
 parser.add_argument(
+        '-H', '--fullhelp', dest='fullhelp', default=False, action='store_true',
+        help=f"print detailed help")
+parser.add_argument(
         '-a', '--available', dest='available', default=False, action='store_true',
-        help=("show available option-setting combinations - "
-            "allows for unix-style glob-expression searching"))
+        help=("show available option-setting combinations; "
+            "allows for unix-style glob-expression searching; "
+            "'-a' is implicitely selected when no 'setting' argument is input"))
 parser.add_argument(
         '-v', '--verbose', dest='verbose', default=False, action='store_true',
         help="turn on verbose output")
@@ -116,9 +123,6 @@ parser.add_argument(
         '-d', '--debug', dest='debug', default=False, action='store_true',
         help="turn on debug output in log file")
 parser.add_argument(
-        '-H', '--fullhelp', dest='fullhelp', default=False, action='store_true',
-        help=f"print detailed help")
-parser.add_argument(
         '--nolog', dest='nolog', default=False, action='store_true',
         help=f"do not write log file '{LOG_PATH}'")
 parser.add_argument('--bashcompletion', dest='bashcompletion', default=False,
@@ -128,7 +132,7 @@ parser.add_argument('--bashcompletion', dest='bashcompletion', default=False,
 args = parser.parse_args()
 
 if args.fullhelp:
-    parser.description = LONG_HELP_DESCRIPTION
+    parser.description = FULL_HELP_DESCRIPTION
     parser.print_help()
     exit()
 
@@ -136,8 +140,11 @@ if args.fullhelp:
 LOG_LEVEL = 'DEBUG' if args.debug else 'INFO'
 if args.nolog:
     LOG_PATH = '/dev/null'
-elif os.path.exists(LOG_PATH):
-    os.remove(LOG_PATH)
+else:
+    if not os.path.exists(AUX_DIR):
+        os.makedirs(AUX_DIR)
+    if os.path.exists(LOG_PATH):
+        os.remove(LOG_PATH)
 logging.basicConfig(filename=LOG_PATH, level=LOG_LEVEL)
 
 ## Initialize global variables
@@ -252,12 +259,19 @@ def print_available(dbOps, dbVarOps, globPat='*', headerMsg=PRINT_AVAIL_DEF_HDR_
 
 def write_bashcompletion_file(dbOps, dbVarOps, bashcompPath):
     """Write file that can be sourced to enable tab completion for this tool. """
+    usageStr=parser.format_usage()
+    helpStr=parser.format_help()
+    reShortUsage = re.compile(f"\s(-\w+)")
+    reLongUsage = re.compile(f"\s(--\w+)")
+    defaultCmdOptsShort = [f"'{opt}'" for opt in sorted(reShortUsage.findall(helpStr))]
+    defaultCmdOptsLong = [f"'{opt}'" for opt in sorted(reLongUsage.findall(helpStr))]
+    defaultCmdOptsShortStr = ' '.join(defaultCmdOptsShort)
+    defaultCmdOptsLongStr = ' '.join(defaultCmdOptsLong)
     fileContentsTemplate = """#!/bin/bash
 # Auto-generated Bash completion settings for {baseRunCmd}
 # Run 'source {bashcompPath}' to enable
 optRegex="\-[a-z], --[a-z]*"
-defaultOptions=`{baseRunCmd} --help | grep "$optRegex" | tr -d ',' | tr -s ' ' | cut -d ' ' -f2,3`
-_{bashcompCmd}()
+_optionset()
 {{
     local cur prev
 
@@ -267,7 +281,8 @@ _{bashcompCmd}()
     case ${{COMP_CWORD}} in
         1)
             COMPREPLY=($(compgen -W "
-                $defaultOptions {gatheredOptionsStr}
+                {defaultCmdOptsShortStr}
+                {defaultCmdOptsLongStr}{gatheredOptionsStr}
                 " -- ${{cur}}))
             ;;
         2)
@@ -279,7 +294,8 @@ _{bashcompCmd}()
             ;;
     esac
 }}
-complete -F _{bashcompCmd} {bashcompCmd}"""
+complete -F _optionset {bashcompCmd}
+complete -F _optionset {bashcompCmd_B}"""
     gatheredOptionsStr = ""
     optionsWithSettingsTemplate = """
                 '{optionStr}')
@@ -287,6 +303,7 @@ complete -F _{bashcompCmd} {bashcompCmd}"""
                     ;;"""
     optionsWithSettingsStr = ""
     bashcompCmd = BASHCOMPCMD
+    bashcompCmd_B = BASHCOMPCMD_B
     baseRunCmd = BASENAME
 
     for db in (dbOps, dbVarOps):
@@ -302,7 +319,7 @@ complete -F _{bashcompCmd} {bashcompCmd}"""
     fileContents = fileContentsTemplate.format(**locals())
 
     with open(bashcompPath, 'w', encoding='UTF-8') as file:
-        logging.info(f"Writing bashcompletion settings to {bashcompPath}")
+        logging.info(f"Writing bash completion settings to {bashcompPath}")
         file.writelines(fileContents)
 
 
