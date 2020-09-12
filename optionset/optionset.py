@@ -35,7 +35,6 @@ RUNCMD = BASHCOMPCMD if '--bashcompletion' in argv else BASENAME
 AUX_DIR = f"{os.path.expanduser('~')}/.optionset"
 LOG_PATH = f"{AUX_DIR}/log.{BASENAME}"
 BASHCOMP_PATH = f"{AUX_DIR}/bash_completion"
-#BASHCOMP_PATH = f"/etc/bash_completion.d/.optionsetcompletion.sh"
 SHORT_DESCRIPTION = f"""
 This program enables and disables user-predefined options in text-based code
 and dictionary files in the base directory and below.  The user specifies the
@@ -116,7 +115,7 @@ parser.add_argument(
         '-a', '--available', dest='available', default=False, action='store_true',
         help=("show available option-setting combinations; "
             "allows for unix-style glob-expression searching; "
-            "'-a' is implicitely selected when no 'setting' argument is input"))
+            "'-a' is implicitely enabled when no 'setting' is input"))
 parser.add_argument(
         '-v', '--verbose', dest='verbose', default=False, action='store_true',
         help="turn on verbose output")
@@ -127,11 +126,12 @@ parser.add_argument(
         '-d', '--debug', dest='debug', default=False, action='store_true',
         help="turn on debug output in log file")
 parser.add_argument(
-        '--nolog', dest='nolog', default=False, action='store_true',
-        help=f"do not write log file '{LOG_PATH}'")
-parser.add_argument('--bashcompletion', dest='bashcompletion', default=False,
+        '-n', '--nolog', dest='nolog', default=False, action='store_true',
+        help=f"do not write log file to '{LOG_PATH}'")
+parser.add_argument(
+        '-b', '--bashcompletion', dest='bashcompletion', default=False,
         action='store_true',
-        help=f"auto-generate bash-completion script '{BASHCOMP_PATH}'")  #, help=argparse.SUPPRESS)
+        help=f"auto-generate bash tab-completion script '{BASHCOMP_PATH}'") 
 
 ## Initialize global variables
 IGNORE_DIRS = {'processor[0-9]*', '.git', '[0-9]', '[0-9][0-9]*', '[0-9].[0-9]*',

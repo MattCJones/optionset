@@ -9,7 +9,7 @@ Use -h to view help.
 :license: GPLv3, see LICENSE for more details.
 """
 
-from .optionset import optionset
+from .optionset import *
 
 __author__ = "Matthew C. Jones"
 __version__ = "20.09"
@@ -17,5 +17,5 @@ __version__ = "20.09"
 __all__ = (
         "optionset",
         "__author__",
-        "__verion__",
+        "__version__",
         )

@@ -14,10 +14,10 @@ from contextlib import redirect_stdout
 from io import StringIO
 from time import time
 
-sys.path.append('../bin')
+sys.path.append('../optionset')
 from optionset import optionset
 
-RUNAPP = "../bin/optionset.py"  # run the application
+RUNAPP = "../optionset/optionset.py"  # run the application
 BASENAME = "optionset.py"
 AUX_DIR = f"{os.path.expanduser('~')}/.optionset"
 LOG_PATH = f"{AUX_DIR}/log.{BASENAME}"
@@ -28,10 +28,7 @@ SOL_DIR_B = f"{ARCHIVE_DIR}/solSetB"
 SOL_DIR_C = f"{ARCHIVE_DIR}/solSetC"
 SOL_DIR_D = f"{ARCHIVE_DIR}/solSetD"
 
-F_skipTestSets = True
-
-F_success_A = optionset(["@val@", "a"])
-print("DEBUG", F_success_A)
+F_skipTestSets = False
 
 def ut_print(*args, **kwargs):
     """Print that takes into account verbosity level of test suite"""
