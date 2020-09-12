@@ -4,7 +4,8 @@ import time
 import numpy as np
 
 times = []
-for i in range(100):
+N = 100
+for i in range(N):
     startTime = time.time()
     os.system('optionset.py -q @op 2')
     thisTime = time.time() - startTime

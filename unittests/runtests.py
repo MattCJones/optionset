@@ -9,7 +9,13 @@ import subprocess
 import shlex
 import shutil
 import sys
+
+from contextlib import redirect_stdout
+from io import StringIO
 from time import time
+
+sys.path.append('../bin')
+from optionset import optionset
 
 RUNAPP = "../bin/optionset.py"  # run the application
 BASENAME = "optionset.py"
@@ -22,7 +28,10 @@ SOL_DIR_B = f"{ARCHIVE_DIR}/solSetB"
 SOL_DIR_C = f"{ARCHIVE_DIR}/solSetC"
 SOL_DIR_D = f"{ARCHIVE_DIR}/solSetD"
 
-F_skipTestSets = False
+F_skipTestSets = True
+
+F_success_A = optionset(["@val@", "a"])
+print("DEBUG", F_success_A)
 
 def ut_print(*args, **kwargs):
     """Print that takes into account verbosity level of test suite"""
@@ -206,6 +215,20 @@ class TestIO(unittest.TestCase):
             self.assertTrue(test_regex(reHasExtension, outputStr))
 
     ############################################################
+    # Test Python import functionality
+    ############################################################
+    def test_python_import(self):
+        """Test that same output is found using both command line and Python
+        import functionality"""
+        cmdLineOutputStr, _ = run_cmd(f"{RUNAPP} @val -a")
+        fIO = StringIO()
+        with redirect_stdout(fIO):  # capture standard out
+            optionset(["@val", "-a"])
+        pyImportOutputStr = fIO.getvalue()
+        self.assertEqual(cmdLineOutputStr, pyImportOutputStr)
+
+
+    ############################################################
     # Test invalid format
     ############################################################
     def test_invalid(self):
@@ -319,7 +342,7 @@ class TestIO(unittest.TestCase):
         outputStr, _ = run_cmd(f"{RUNAPP} @none none")
         with open(LOG_PATH, 'r') as file:
             logStr = file.read()
-        dotLogReStr = r"""INFO:root:Executing main function
+        dotLogReStr = r"""INFO:root:Executing main optionset function
 INFO:root:Checking input options
 INFO:root:<tag><option> <setting> = \\@none none
 INFO:root:Generating valid files
