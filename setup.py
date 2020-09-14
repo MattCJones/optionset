@@ -13,7 +13,7 @@ from setuptools import setup
 
 from optionset import __version__, __author__
 
-scriptList = ["optionset/optionset.py",]
+scriptList = ["optionset/optionset.py", ]
 
 if __name__ == "__main__":
     with open("README.md", "r") as fh:
@@ -23,7 +23,8 @@ if __name__ == "__main__":
         name='optionset',
         version=__version__,
         packages=['optionset', ],
-        description="Enable/disable user-predefined options in text-based dictionaries",
+        description="Enable/disable user-predefined options in text-based "
+        "dictionaries",
         long_description=long_description,
         long_description_content_type="text/markdown",
         url=None,

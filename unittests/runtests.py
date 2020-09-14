@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Run unit tests on optionset. See -h for help and -v for verbose
+Run unit tests on optionset. See -h for help and -v for verbose.
 """
 import unittest
 import os
@@ -30,14 +30,15 @@ SOL_DIR_D = f"{ARCHIVE_DIR}/solSetD"
 
 F_skipTestSets = False
 
+
 def ut_print(*args, **kwargs):
-    """Print that takes into account verbosity level of test suite"""
+    """Print that takes into account verbosity level of test suite. """
     if ('-v' in sys.argv) or ('--verbose' in sys.argv):
         print(*args, **kwargs)
 
 
 def test_regex(regex, strToSearch):
-    """Test that regex expression works for given strToSearch"""
+    """Test that regex expression works for given strToSearch. """
     if regex.search(strToSearch):
         return True
     else:
@@ -45,15 +46,15 @@ def test_regex(regex, strToSearch):
 
 
 def run_cmd(cmdStr):
-    """Run a command and return the output"""
+    """Run a command and return the output. """
     subproc = subprocess.run(shlex.split(cmdStr), capture_output=True,
-            check=True)
+                             check=True)
     outputStr = subproc.stdout.decode('UTF-8')
     return outputStr, subproc.returncode
 
 
 def enable_testset_a():
-    """Enable Test Set A"""
+    """Enable Test Set A. """
     opSetStrs = (
             "@multiFile multiLine",
             "@nestedL0 a",
@@ -75,7 +76,7 @@ def enable_testset_a():
 
 
 def enable_testset_b():
-    """Enable Test Set B"""
+    """Enable Test Set B. """
     opSetStrs = (
             "@multiFile singleLine",
             "@nestedL0 b",
@@ -97,7 +98,7 @@ def enable_testset_b():
 
 
 def enable_testset_c():
-    """Enable Test Set C"""
+    """Enable Test Set C. """
     opSetStrs = (
             "@multiFile multiLine",
             "@nestedL0 b",
@@ -119,7 +120,7 @@ def enable_testset_c():
 
 
 def enable_testset_d():
-    """Enable Test Set D"""
+    """Enable Test Set D. """
     opSetStrs = (
             "@multiFile multiLine",
             "@nestedL0 a",
@@ -153,20 +154,20 @@ def enable_testset_d():
 
 
 def enable_default_options():
-    """Set default options"""
+    """Set default options. """
     enable_testset_a()
 
 
 @unittest.skipIf(False, "Skipping for debug")
 class TestIO(unittest.TestCase):
-    """Test program through input and output"""
+    """Test program through input and output. """
 
     def setUp(self):
-        """Run before tests"""
+        """Run before tests. """
         pass
 
     def tearDown(self):
-        """Run after tests"""
+        """Run after tests. """
         pass
 
     @classmethod
@@ -184,27 +185,31 @@ class TestIO(unittest.TestCase):
     # Test basic
     ############################################################
     def test_basic_io(self):
-        """Test basic input and output"""
-        reHasInputErr = re.compile(r".*InputError.*[\r\n].*Invalid option name.*")
+        """Test basic input and output. """
+        reStr = r".*InputError.*[\r\n].*Invalid option name.*"
+        reHasInputErr = re.compile(reStr)
         outputStr, _ = run_cmd(f"{RUNAPP} @invalid@Option validSetting")
-        self.assertTrue(test_regex(reHasInputErr, outputStr), "Invalid option")
+        self.assertTrue(test_regex(reHasInputErr, outputStr),
+                        "Invalid option")
 
-        reHasInputErr = re.compile(r".*InputError.*[\r\n].*Invalid setting name.*")
+        reStr = r".*InputError.*[\r\n].*Invalid setting name.*"
+        reHasInputErr = re.compile(reStr)
         outputStr, _ = run_cmd(f"{RUNAPP} @validOption @invalidSetting")
-        self.assertTrue(test_regex(reHasInputErr, outputStr), msg="Invalid setting")
+        self.assertTrue(test_regex(reHasInputErr, outputStr),
+                        msg="Invalid setting")
 
         reShowsUsage = re.compile("^usage:.*")
         outputStr, _ = run_cmd(f"{RUNAPP} -h")
         self.assertTrue(test_regex(reShowsUsage, outputStr))
 
     def test_ignored(self):
-        """Test ignored files and directories"""
+        """Test ignored files and directories. """
         reHasIgnoreStr = re.compile(".*shouldIgnore.*")
         outputStr, _ = run_cmd(f"{RUNAPP} -a")
         self.assertFalse(test_regex(reHasIgnoreStr, outputStr))
 
     def test_extensions(self):
-        """Test various valid file extensions"""
+        """Test various valid file extensions. """
         outputStr, _ = run_cmd(f"{RUNAPP} -a @validExtension")
         settingStrs = ('dat', 'nml', 'none', 'txt', 'org', 'orig', 'yaml',)
         for settingStr in settingStrs:
@@ -216,7 +221,7 @@ class TestIO(unittest.TestCase):
     ############################################################
     def test_python_import(self):
         """Test that same output is found using both command line and Python
-        import functionality"""
+        import functionality. """
         cmdLineOutputStr, _ = run_cmd(f"{RUNAPP} @val -a")
         fIO = StringIO()
         with redirect_stdout(fIO):  # capture standard out
@@ -224,12 +229,11 @@ class TestIO(unittest.TestCase):
         pyImportOutputStr = fIO.getvalue()
         self.assertEqual(cmdLineOutputStr, pyImportOutputStr)
 
-
     ############################################################
     # Test invalid format
     ############################################################
     def test_invalid(self):
-        """Test invalid files and directories"""
+        """Test invalid files and directories. """
         reInvalid = re.compile(".*ERROR.*")
         outputStr, _ = run_cmd(f"{RUNAPP} -a")
         self.assertFalse(test_regex(reInvalid, outputStr))
@@ -238,7 +242,7 @@ class TestIO(unittest.TestCase):
     # Test valid format
     ############################################################
     def test_comment_types(self):
-        """Test various comment types"""
+        """Test various comment types. """
         outputStr, _ = run_cmd(f"{RUNAPP} -a @validCommentType")
         settingStrs = ('Bash', 'CPP', 'MATLAB', 'NML', 'custom',)
         for settingStr in settingStrs:
@@ -246,37 +250,38 @@ class TestIO(unittest.TestCase):
             self.assertTrue(test_regex(reCommentType, outputStr))
 
     def test_valid_syntax(self):
-        """Test proper syntax of options and settings"""
+        """Test proper syntax of options and settings. """
         outputStr, _ = run_cmd(f"{RUNAPP} -a @validSyntax")
         settingStrs = ('difficultPlacement', 'multiline', 'difficultLine',
-                'difficultComment',)
+                       'difficultComment',)
         for settingStr in settingStrs:
             reSyntax = re.compile(f".*{settingStr}.*")
             self.assertTrue(test_regex(reSyntax, outputStr))
 
     def test_variable_options(self):
-        """Test variable option"""
+        """Test variable option. """
         varSettingStr = '1e-8'
         reSetting = re.compile(f".*{varSettingStr}.*")
 
         outputStrBefore, _ = run_cmd(f"{RUNAPP} -a @variableOption")
         self.assertFalse(test_regex(reSetting, outputStrBefore))
 
-        outputStrChange, _ = run_cmd(f"{RUNAPP} -v @variableOption {varSettingStr}")
+        runStr = f"{RUNAPP} -v @variableOption {varSettingStr}"
+        outputStrChange, _ = run_cmd(runStr)
         self.assertTrue(test_regex(reSetting, outputStrChange))
 
         outputStrAfter, _ = run_cmd(f"{RUNAPP} -a @variableOption")
         self.assertTrue(test_regex(reSetting, outputStrAfter))
 
     def test_multiple_tags(self):
-        """Test multiple tags in options"""
+        """Test multiple tags in options. """
         optionStr = r"~@$^&multipleTags"
         outputStr, _ = run_cmd(f"{RUNAPP} -a {optionStr}")
-        reSyntax = re.compile(f".*\~\@\$\^\&multipleTags.*")
+        reSyntax = re.compile(r".*\~\@\$\^\&multipleTags.*")
         self.assertTrue(test_regex(reSyntax, outputStr))
 
     def test_multiple_files(self):
-        """Test options placed in multiple files"""
+        """Test options placed in multiple files. """
         optionStr = r"\@multiFile"
 
         settingStr = "singleLine"
@@ -290,7 +295,7 @@ class TestIO(unittest.TestCase):
         self.assertTrue(test_regex(reMultiFileMultiLine, outputStr))
 
     def test_overlapping_options(self):
-        """Test overlapping options"""
+        """Test overlapping options. """
         optionStr = r"\@overlappingOption"
         settingStr = "c"
         outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
@@ -304,7 +309,7 @@ class TestIO(unittest.TestCase):
         self.assertTrue(test_regex(reOverlappingShort, outputStr))
 
     def test_nested_options(self):
-        """Test multi-scoped options"""
+        """Test multi-scoped options. """
         optionStr = r"\@nested"
         outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
 
@@ -330,27 +335,26 @@ class TestIO(unittest.TestCase):
         reNested = re.compile(f".*{settingStr}.*{optionStr}.*")
         self.assertTrue(test_regex(reNested, outputStr))
 
-
     ############################################################
     # Regression test: show that output is unchanged in with new version
     ############################################################
     def test_dotlog_output(self):
-        f"""Test that {LOG_PATH} remains unchanged for basic input"""
+        f"""Test that {LOG_PATH} remains unchanged for basic input. """
         outputStr, _ = run_cmd(f"{RUNAPP} @none none")
         with open(LOG_PATH, 'r') as file:
             logStr = file.read()
         dotLogReStr = r"""INFO:root:Executing main optionset function
 INFO:root:Checking input options
-INFO:root:<tag><option> <setting> = \\@none none
+INFO:root:<tag><rawOpt> <setting> = \\@none none
 INFO:root:Generating valid files
 INFO:root:Valid files: \[.*\]
 INFO:root:Scrolling through files to set: \\@none none
 WARNING:root:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
-WARNING:root:Reason: 'utf-8' codec can't decode byte 0xd9 in position \d+: invalid continuation byte
+WARNING:root:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
 WARNING:root:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
-WARNING:root:Reason: 'utf-8' codec can't decode byte .* in position \d+: invalid continuation byte
+WARNING:root:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
 WARNING:root:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
-WARNING:root:Reason: 'utf-8' codec can't decode byte .* in position \d+: invalid continuation byte
+WARNING:root:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
 WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooLarge10kB.dat
 WARNING:root:Reason: File exceeds kB size limit of 10
 WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooManyLines.dat
@@ -362,16 +366,16 @@ INFO:root:Finished in \d+.\d+ s"""
 
 @unittest.skipIf(F_skipTestSets, "Skipping test sets")
 class TestSets(unittest.TestCase):
-    """Run through Test Sets and verify output"""
+    """Run through Test Sets and verify output. """
 
     checkDiffMsg = "Differences in files shown below:\n{diffOutput}"
 
     def setUp(self):
-        """Run before tests"""
+        """Run before tests. """
         pass
 
     def tearDown(self):
-        """Run after tests"""
+        """Run after tests. """
         pass
 
     @classmethod
@@ -383,46 +387,51 @@ class TestSets(unittest.TestCase):
         ut_print("\nResetting options")
         enable_default_options()
 
-    @unittest.skipIf(not os.path.exists(SOL_DIR_A), f"No directory: {SOL_DIR_A}")
+    @unittest.skipIf(not os.path.exists(SOL_DIR_A), f"No dir: {SOL_DIR_A}")
     def testset_a(self):
-        """Test Set A (default)"""
+        """Test Set A (default). """
         ut_print("\nEnabling Test Set A")
         enable_testset_a()
         outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_A}")
-        self.assertEqual(outputStr, "", msg=self.checkDiffMsg.format(diffOutput=outputStr))
+        self.assertEqual(outputStr, "",
+                         msg=self.checkDiffMsg.format(diffOutput=outputStr))
 
-    @unittest.skipIf(not os.path.exists(SOL_DIR_B), f"No directory: {SOL_DIR_B}")
+    @unittest.skipIf(not os.path.exists(SOL_DIR_B), f"No dir: {SOL_DIR_B}")
     def testset_b(self):
-        """Test Set B"""
+        """Test Set B. """
         ut_print("\nEnabling Test Set B")
         enable_testset_b()
         outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_B}")
-        self.assertEqual(outputStr, "", msg=self.checkDiffMsg.format(diffOutput=outputStr))
+        self.assertEqual(outputStr, "",
+                         msg=self.checkDiffMsg.format(diffOutput=outputStr))
 
-    @unittest.skipIf(not os.path.exists(SOL_DIR_C), f"No directory: {SOL_DIR_C}")
+    @unittest.skipIf(not os.path.exists(SOL_DIR_C), f"No dir: {SOL_DIR_C}")
     def testset_c(self):
-        """Test Set C"""
+        """Test Set C. """
         ut_print("\nEnabling Test Set C")
         enable_testset_c()
         outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_C}")
-        self.assertEqual(outputStr, "", msg=self.checkDiffMsg.format(diffOutput=outputStr))
+        self.assertEqual(outputStr, "",
+                         msg=self.checkDiffMsg.format(diffOutput=outputStr))
 
-    @unittest.skipIf(not os.path.exists(SOL_DIR_D), f"No directory: {SOL_DIR_D}")
+    @unittest.skipIf(not os.path.exists(SOL_DIR_D), f"No dir: {SOL_DIR_D}")
     def testset_d(self):
-        """Test Set D"""
+        """Test Set D. """
         ut_print("\nEnabling Test Set D")
         enable_testset_d()
         outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_D}")
-        self.assertEqual(outputStr, "", msg=self.checkDiffMsg.format(diffOutput=outputStr))
+        self.assertEqual(outputStr, "",
+                         msg=self.checkDiffMsg.format(diffOutput=outputStr))
 
 
 def mkdirs(dirStr):
-    """Make directory if it does not exist"""
+    """Make directory if it does not exist. """
     if not os.path.exists(dirStr):
         os.makedirs(dirStr)
 
+
 def trash_dir(dirStr):
-    """Move a directory to trash/ ; rename if necessary"""
+    """Move a directory to trash/ ; rename if necessary. """
     if not os.path.exists(dirStr):
         return
     trashDir = "trash"
@@ -442,11 +451,11 @@ def trash_dir(dirStr):
     shutil.move(dirStr, toDir)
 
 
-
 def generate_solution_sets():
-    """Generation solution test sets that are compared to with diff utility"""
+    """Generation solution test sets that are compared to with diff utility.
+    """
     trash_dir(ARCHIVE_DIR)
-    #mkdirs(ARCHIVE_DIR)
+    mkdirs(ARCHIVE_DIR)
 
     print("Generating solution set A")
     enable_testset_a()
@@ -467,6 +476,7 @@ def generate_solution_sets():
     print("Resetting options")
     enable_default_options()
 
+
 if __name__ == '__main__':
     F_help = '-h' in sys.argv or '--help' in sys.argv
     F_generate = '-g' in sys.argv or '--generate' in sys.argv
@@ -474,11 +484,11 @@ if __name__ == '__main__':
     if F_help:
         scriptName = os.path.basename(__file__)
         print("------------------------------------------------------------")
-        print(f"usage: {scriptName} [-g] [--generate] to generate solution sets")
+        print(f"usage: {scriptName} [-g] [--generate] "
+              f"to generate solution sets")
         print("---------------------------- or ----------------------------")
 
     if F_generate:
         generate_solution_sets()
-    else: # run tests as normal
+    else:  # run tests as normal
         unittest.main()
-

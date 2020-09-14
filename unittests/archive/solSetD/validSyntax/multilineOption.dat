@@ -20,5 +20,5 @@
 #Valid text # *@validSyntax multiline
 
 Valid text # *@multiFile multiLine
-#Multi-line option in file A
+Multi-line option in file A
 Valid text # *@multiFile multiLine
