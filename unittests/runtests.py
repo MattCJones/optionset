@@ -48,7 +48,7 @@ def test_regex(regex, strToSearch):
 def run_cmd(cmdStr):
     """Run a command and return the output. """
     subproc = subprocess.run(shlex.split(cmdStr), capture_output=True,
-                             check=True)
+                             check=False)
     outputStr = subproc.stdout.decode('UTF-8')
     return outputStr, subproc.returncode
 
@@ -296,17 +296,56 @@ class TestIO(unittest.TestCase):
 
     def test_overlapping_options(self):
         """Test overlapping options. """
+        # Standard overlapping option
         optionStr = r"\@overlappingOption"
         settingStr = "c"
         outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
         reOverlapping = re.compile(f".*{optionStr} {settingStr}.*")
         self.assertTrue(test_regex(reOverlapping, outputStr))
 
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+        reOverlapping = re.compile(f".*> {settingStr} <.*")
+        self.assertTrue(test_regex(reOverlapping, outputStr))
+
+        settingStr = "b"
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        reOverlapping = re.compile(f".*{optionStr} {settingStr}.*")
+        self.assertTrue(test_regex(reOverlapping, outputStr))
+
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+        reOverlapping = re.compile(f".*> {settingStr} <.*")
+        self.assertTrue(test_regex(reOverlapping, outputStr))
+
+        # Short overlapping option
         optionStr = r"\@overlappingOptionShort"
         settingStr = "c"
         outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
         reOverlappingShort = re.compile(f".*{optionStr} {settingStr}.*")
         self.assertTrue(test_regex(reOverlappingShort, outputStr))
+
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+        reOverlappingShort = re.compile(f".*> {settingStr} <.*")
+        self.assertTrue(test_regex(reOverlappingShort, outputStr))
+
+        # Overlapping multiline options
+        optionStr = r"\@overlappingMultiline"
+        settingStr = "c"
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        reOverlappingMultiline = re.compile(f".*{optionStr} {settingStr}.*")
+        self.assertTrue(test_regex(reOverlappingMultiline, outputStr))
+
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+        reOverlappingMultiline = re.compile(f".*> {settingStr} <.*")
+        self.assertTrue(test_regex(reOverlappingMultiline, outputStr))
+
+        settingStr = "b"
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        reOverlappingMultiline = re.compile(f".*{optionStr} {settingStr}.*")
+        self.assertTrue(test_regex(reOverlappingMultiline, outputStr))
+
+        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+        reOverlappingMultiline = re.compile(f".*> {settingStr} <.*")
+        self.assertTrue(test_regex(reOverlappingMultiline, outputStr))
 
     def test_nested_options(self):
         """Test multi-scoped options. """

@@ -123,7 +123,7 @@ parser.add_argument(
 parser.add_argument(
         '-H', '--fullhelp', dest='fullhelp', default=False,
         action='store_true',
-        help=f"print complete help")
+        help=f"show complete help")
 parser.add_argument(
         '-a', '--available', dest='available', default=False,
         action='store_true',
@@ -214,7 +214,7 @@ parentheses in the regex, use '\('.
 Line {lineNum}:{line}
 To view help try:
     "%(runCmd)s -h"''' % {'anyVar': ANY_VAR_SETTING, 'runCmd': RUNCMD}
-PRINT_AVAIL_DEF_HDR_MSG = '''Printing available options and settings{matchMsg}
+PRINT_AVAIL_DEF_HDR_MSG = '''Showing available options and settings:{matchMsg}
 ('  inactive  ', '> active <', '? both ?', '= variable ='):'''
 INVALID_REGEX_GROUP_MSG = '''InvalidRegexGroupError: {specificProblem}
 A regular expression 'group' is denoted by a surrounding pair of parentheses
@@ -505,18 +505,18 @@ def _build_regexes(regexVars):
 
 
 def _process_line(line, lineNum, fDb, optionsSettings, varOptionsValues, ):
-    """Apply logic and process single line in file.  """
+    """Apply logic and process options/settings in a single line of the current
+    file.  This is the heart of the code.
+    """
     newLine = line
     inp = fDb.userInput
     varErrMsg = INVALID_VAR_REGEX_MSG.format(fileName=fDb.filePath,
                                              lineNum=lineNum, line=line)
 
+    # Adjust nested level
     fDb.nestedLvl += fDb.nestedIncrement
     fDb.nestedIncrement = 0  # reset
     fDb.reVars['nestedComInds'] = rf"\s*{fDb.comInd}" * fDb.nestedLvl
-
-    logging.debug(f"LINE[{lineNum}](L{fDb.nestedLvl:1},"
-                  f"{str(fDb.F_multiLineActive)[0]}):{line[:-1]}")
 
     # Identify components of line based on regular expressions
     commdLineRe, unCommdLineRe, tagOptionSettingRe = _build_regexes(fDb.reVars)
@@ -530,16 +530,18 @@ def _process_line(line, lineNum, fDb, optionsSettings, varOptionsValues, ):
                 unCommdLineMatch.group('nestedComInds', 'nonCom', 'wholeCom')
     else:
         nestedComInds, nonCom, wholeCom = "", "", ""
-    F_commented = commdLineMatch
+    F_commented = bool(commdLineMatch)
     tagOptionSettingMatches = tagOptionSettingRe.findall(wholeCom)
+
+    logging.debug(f"LINE[{lineNum}](L{fDb.nestedLvl:1},"
+                  f"{str(fDb.F_multiLineActive)[0]})"
+                  f"({fDb.comInd},{str(F_commented)[0]}):{line[:-1]}")
 
     # Parse commented part of line; determine inline matches
     inlineOptionCount = defaultdict(lambda: 0)
     inlineOptionMatch = defaultdict(lambda: False)
     inlineSettingMatch = defaultdict(lambda: False)
-    #inlineMtagMatch = defaultdict(lambda: False)
     F_inlineOptionMatch = False
-    #F_inlineMtagMatch = False
     for mtag, tag, rawOpt, setting in tagOptionSettingMatches:
         # Count occurances of rawOpt
         inlineOptionCount[tag+rawOpt] += 1
@@ -548,30 +550,28 @@ def _process_line(line, lineNum, fDb, optionsSettings, varOptionsValues, ):
             F_inlineOptionMatch = True
             if inp.setting.replace('\\', '') == setting:
                 inlineSettingMatch[tag+rawOpt] = True
-        #if mtag:
-        #    inlineMtagMatch[tag+rawOpt] = True
-        #    F_inlineMtagMatch = True
 
+    # Multi-line option logic:
     # Toggle (comment or uncomment) line if multi-line option is active
     if fDb.F_multiLineActive and not F_inlineOptionMatch:
         if fDb.F_multiCommented:
             newLine = _uncomment(line, fDb.comInd, lineNum)
         else:
             newLine = _comment(line, fDb.comInd, lineNum)
-        fDb.F_fileModified = True
-        return newLine
+        F_freezeChanges = True
+    else:
+        F_freezeChanges = False
 
-    # Apply all additional logic to current line
-    F_freezeChanges = False
+    # All other required logic based on matches in line
     for mtag, tag, rawOpt, setting in tagOptionSettingMatches:
+        logging.debug(f"\tMATCH(freeze={str(F_freezeChanges)[0]}):"
+                      f"{mtag}{tag}{rawOpt} {setting}")
+        # Skip rest of logic if change-freeze is set
         if F_freezeChanges:
             continue
 
-        logging.debug(f"\tMATCH:({fDb.comInd},{str(F_commented)[0]})"
-                      f"{mtag}{tag}{rawOpt} {setting}")
-
+        # Logic for determining levels for nested options
         if mtag:  # multitag present in line
-            # Logic for determining levels for nested options
             if F_commented:
                 fDb.nestedOptionDb[fDb.nestedLvl] = tag+rawOpt
                 fDb.nestedIncrement = 1
@@ -592,7 +592,8 @@ def _process_line(line, lineNum, fDb, optionsSettings, varOptionsValues, ):
         else:  # no multitag present
             pass
 
-        if inp.F_available:  # build database of available options
+        # Build database of available options and settings
+        if inp.F_available or inp.F_bashcomp:
             # Determine active, inactive, and simultaneous options
             if re.search(ANY_VAR_SETTING, setting) and not F_commented:
                 strToReplace = _parse_inline_regex(nonCom, setting, varErrMsg)
@@ -601,21 +602,20 @@ def _process_line(line, lineNum, fDb, optionsSettings, varOptionsValues, ):
                 if inlineOptionCount[tag+rawOpt] > 1:
                     optionsSettings[tag+rawOpt][setting] = None
                 else:
-                    optionsSettings[tag+rawOpt][setting] =\
-                        (not F_commented)
-            elif optionsSettings[tag+rawOpt][setting] !=\
-                    (not F_commented):
+                    optionsSettings[tag+rawOpt][setting] = (not F_commented)
+            elif optionsSettings[tag+rawOpt][setting] != (not F_commented):
                 optionsSettings[tag+rawOpt][setting] = '?'  # ambiguous
             else:
                 pass
-        else:  # modify line based on user input and regular expression matches
-            # Match input tag+rawOpt
+
+        # Modify line based on user input and regular expression matches
+        if not inp.F_available:
+            # Match input option (tag+rawOpt)
             if ((inp.tag+inp.rawOpt).replace('\\', '') == tag+rawOpt):
                 if F_commented:  # commented line
                     if (inp.setting == setting):  # match input setting
                         # Uncomment lines with input tag+rawOpt and setting
                         newLine = _uncomment(line, fDb.comInd, lineNum)
-                        fDb.F_fileModified = True
                         if mtag and not fDb.F_multiLineActive:
                             fDb.F_multiLineActive = True
                             fDb.F_multiCommented = F_commented
@@ -638,13 +638,11 @@ def _process_line(line, lineNum, fDb, optionsSettings, varOptionsValues, ):
                                 newLine = _set_var_option(
                                     line, fDb.comInd, lineNum, replaceStr,
                                     setting, nestedComInds, nonCom, wholeCom)
-                            fDb.F_fileModified = True
-                            F_freezeChanges = True
+                                F_freezeChanges = True
                     # Not 1 match in line
                     elif (inlineOptionMatch[tag+rawOpt]) and\
                             (not inlineSettingMatch[tag+rawOpt]):
                         newLine = _comment(line, fDb.comInd, lineNum)
-                        fDb.F_fileModified = True
                         if mtag and not fDb.F_multiLineActive:
                             fDb.F_multiLineActive = True
                             fDb.F_multiCommented = F_commented
@@ -659,6 +657,11 @@ def _process_line(line, lineNum, fDb, optionsSettings, varOptionsValues, ):
                         pass
             else:
                 pass
+        else:
+            pass
+
+    if not newLine == line:  # if 1 line in file is change, file is modified
+        fDb.F_fileModified = True
 
     return newLine
 
@@ -783,13 +786,14 @@ def _handle_errors(errTypes, msg):
 def _parse_and_check_input(args):
     """Parse input arguments. """
     UserInput = namedtuple('UserInput', ['tag', 'rawOpt', 'setting',
-                                         'F_available'])
+                                         'F_available', 'F_bashcomp', ])
     if args.setting == '':
         args.available = True
 
     if args.available:
         return UserInput(tag=ANY_TAG, rawOpt=ANY_OPTION, setting=args.setting,
-                         F_available=args.available)
+                         F_available=args.available,
+                         F_bashcomp=args.bashcompletion)
     else:
         # Check if setting is formatted correctly
         with _handle_errors(errTypes=AttributeError,
@@ -804,7 +808,8 @@ def _parse_and_check_input(args):
             mtag, tag, rawOpt = checkTagOptionRe.search(args.option).groups()
         literalTag = ''.join([rf'\{s}' for s in tag])  # read as literal
         return UserInput(tag=literalTag, rawOpt=rawOpt, setting=setting,
-                         F_available=args.available)
+                         F_available=args.available,
+                         F_bashcomp=args.bashcompletion)
 
 
 def optionset(argsArr):
@@ -852,14 +857,16 @@ def optionset(argsArr):
     if args.available:
         globPat = '*' if args.option is None else f"{args.option}*"
         _print_available(tagOptionSettings, varOptions, globPat=globPat)
-        if args.bashcompletion:
-            _write_bashcompletion_file(tagOptionSettings, varOptions,
-                                       BASHCOMP_PATH)
+
+    if args.bashcompletion:
+        _write_bashcompletion_file(tagOptionSettings, varOptions,
+                                    BASHCOMP_PATH)
 
     if F_changesMade and F_VERBOSE:
         _print_and_log(f"See all modifications in {logPath}")
 
     logging.info(f"Finished in {(time()-startTime):1.5f} s")
+
     return True
 
 
