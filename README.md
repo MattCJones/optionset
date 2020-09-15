@@ -17,7 +17,7 @@ Matthew C. Jones <matt.c.jones.aoe@gmail.com>
 
 # Installation
 
-The easiest way to install optionset is the Python package-manager `pip`:
+The easiest way to install Optionset is the Python package-manager `pip`:
 
     pip install optionset
 
@@ -29,5 +29,5 @@ Learn about the tool with the built-in help command:
 
 # License
 
-optionset is licensed under GNU GPL v.3. See the LICENSE document.
+Optionset is licensed under GNU GPL v.3. See the LICENSE document.
 

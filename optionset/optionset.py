@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-optionset
+Optionset
 ~~~~~~~~
 
 Enable/disable user-predefined options in text-based dictionaries.
@@ -9,7 +9,7 @@ Use -h to view help.
 Author: Matthew C. Jones
 Email: matt.c.jones.aoe@gmail.com
 
-:copyright: 2020 by optionset authors, see AUTHORS for more details.
+:copyright: 2020 by Optionset authors, see AUTHORS for more details.
 :license: GPLv3, see LICENSE for more details.
 """
 
@@ -162,7 +162,7 @@ MAX_FSIZE_KB = 10  # maximum file size, kilobytes
 ANY_COMMENT_IND = r'(?:[#%!]|//|--)'  # comment indicators: # % // -- !
 MULTI_TAG = r'[*]'  # for multi-line commenting
 ANY_WORD = r'[\+a-zA-Z0-9._\-]+'
-ANY_OPTION = ANY_WORD
+ANY_RAW_OPTION = ANY_WORD
 ANY_QUOTE = r'[\'"]'
 ANY_VAR_SETTING = rf'\={ANY_QUOTE}.+{ANY_QUOTE}'
 ANY_SETTING = rf'(?:{ANY_WORD}|{ANY_VAR_SETTING})'
@@ -180,7 +180,7 @@ COMMENTED_LINE = r'^(?P<nestedComInds>{nestedComInds})'\
         r'(?P<nonCom>\s*{comInd}(?:(?!{comInd}).)+)' + WHOLE_COMMENT
 ONLY_TAG_GROUP_SETTING = r'({mtag}*)({tag}+)({rawOpt})\s+({setting})\s?'
 GENERIC_RE_VARS = {'comInd': ANY_COMMENT_IND, 'mtag': MULTI_TAG,
-                   'tag': ANY_TAG, 'rawOpt': ANY_OPTION,
+                   'tag': ANY_TAG, 'rawOpt': ANY_RAW_OPTION,
                    'setting': ANY_SETTING, 'nestedComInds': ''}
 
 # Error messages
@@ -329,7 +329,7 @@ complete -F _optionset {bashcompCmd}
 complete -F _optionset {bashcompCmd_B}"""
     gatheredOptionsStr = ""
     optionsWithSettingsTemplate = """
-                '{optionStr}')
+                {optionStr})
                     COMPREPLY=($(compgen -W "'{settingsStr}'" -- ${{cur}}))
                     ;;"""
     optionsWithSettingsStr = ""
@@ -339,7 +339,7 @@ complete -F _optionset {bashcompCmd_B}"""
 
     for db in (dbOps, dbVarOps):
         for item in sorted(db.items()):
-            optionStr = item[0]
+            optionStr = item[0].replace(r'$', r'\$')
             gatheredOptionsStr += os.linesep + f"                '{optionStr}'"
             settingsStr = ""
             for subItem in sorted(item[1].items()):
@@ -349,6 +349,10 @@ complete -F _optionset {bashcompCmd_B}"""
                 optionsWithSettingsTemplate.format(**locals())
 
     fileContents = fileContentsTemplate.format(**locals())
+
+    # Add convenient debug command that references in-development code
+    if logging.getLevelName(logging.root.level) == "DEBUG":
+        fileContents += "complete -F _optionset debug_os"
 
     with open(bashcompPath, 'w', encoding='UTF-8') as file:
         logging.info(f"Writing bash completion settings to {bashcompPath}")
@@ -507,6 +511,33 @@ def _build_regexes(regexVars):
 def _process_line(line, lineNum, fDb, optionsSettings, varOptionsValues, ):
     """Apply logic and process options/settings in a single line of the current
     file.  This is the heart of the code.
+
+    Terminology is explained by referring to the following example lines,
+
+    // somefile.txt start of file
+    Some code here. // some comment here @optionA settingA
+    //Some            // nestedLvl is 0 here *@optionA settingB
+    //other           // nestedLvl is 1 here
+    //code            // nestedLvl is 1 here @optionB settingA
+    //here.           // nestedLvl is 0 here *@optionA settingB
+    Final code.     // nestedLvl is 0 here @optionB settingB
+    End of file.
+
+    comInd:     '//' is extracted comment indicator; this denotes a comment
+    option:     '@optionA' and '@optionB' are extracted options
+    tag:        '@' is the extracted tag for '@optionA' and '@optionB'
+    rawOpt:     'optionA' and 'optionB' are the extracted raw options
+    setting:    'settingA' and 'settingB' are extracted settings
+    mtag:       '*' is the multi-tag, which indicates a multi-line option, in
+                this case for '@optionA settingB'
+    nestedLvl:  '0' is starting level; when a multi-line option is found, the
+                nestedLvl is increased by 1. '@optionB' is a nested option
+                because it lies within the multi-line '@optionA settingB'
+    (in)active: An option-setting combination on an uncommented line is active.
+                Nested options also account for the nested level. In the above
+                example, '@optionA settingA' and '@optionB settingB' are
+                active, while '@optionA settingB' and '@optionB settingB' are
+                inactive.
     """
     newLine = line
     inp = fDb.userInput
@@ -791,8 +822,8 @@ def _parse_and_check_input(args):
         args.available = True
 
     if args.available:
-        return UserInput(tag=ANY_TAG, rawOpt=ANY_OPTION, setting=args.setting,
-                         F_available=args.available,
+        return UserInput(tag=ANY_TAG, rawOpt=ANY_RAW_OPTION,
+                         setting=args.setting, F_available=args.available,
                          F_bashcomp=args.bashcompletion)
     else:
         # Check if setting is formatted correctly
@@ -836,7 +867,8 @@ def optionset(argsArr):
             os.makedirs(AUX_DIR)
         if os.path.exists(logPath):
             os.remove(logPath)
-    logging.basicConfig(filename=logPath, level=logLevel)
+    logFormat = "%(levelname)s:%(message)s"
+    logging.basicConfig(filename=logPath, level=logLevel, format=logFormat)
 
     # Run algorithm
     logging.info("Executing main optionset function")

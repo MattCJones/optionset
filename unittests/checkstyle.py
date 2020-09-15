@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """
 Check that PEP8 format is followed
+
+Author: Matthew C. Jones
+Email: matt.c.jones.aoe@gmail.com
+
+:copyright: 2020 by Optionset authors, see AUTHORS for more details.
+:license: GPLv3, see LICENSE for more details.
 """
 import subprocess
 

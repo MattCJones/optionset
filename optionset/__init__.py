@@ -1,11 +1,11 @@
 """
-optionset
+Optionset
 ~~~~~~~~
 
 Enable/disable user-predefined options in text-based dictionaries.
 Use -h to view help.
 
-:copyright: 2020 by optionset authors, see AUTHORS for more details.
+:copyright: 2020 by Optionset authors, see AUTHORS for more details.
 :license: GPLv3, see LICENSE for more details.
 """
 

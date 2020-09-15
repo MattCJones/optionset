@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """
-Run unit tests on optionset. See -h for help and -v for verbose.
+Run unit tests on Optionset utility. See -h for help and -v for verbose.
+
+Author: Matthew C. Jones
+Email: matt.c.jones.aoe@gmail.com
+
+:copyright: 2020 by Optionset authors, see AUTHORS for more details.
+:license: GPLv3, see LICENSE for more details.
 """
 import unittest
 import os
@@ -382,23 +388,23 @@ class TestIO(unittest.TestCase):
         outputStr, _ = run_cmd(f"{RUNAPP} @none none")
         with open(LOG_PATH, 'r') as file:
             logStr = file.read()
-        dotLogReStr = r"""INFO:root:Executing main optionset function
-INFO:root:Checking input options
-INFO:root:<tag><rawOpt> <setting> = \\@none none
-INFO:root:Generating valid files
-INFO:root:Valid files: \[.*\]
-INFO:root:Scrolling through files to set: \\@none none
-WARNING:root:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
-WARNING:root:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
-WARNING:root:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
-WARNING:root:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
-WARNING:root:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
-WARNING:root:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
-WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooLarge10kB.dat
-WARNING:root:Reason: File exceeds kB size limit of 10
-WARNING:root:Skipping: ./filesToTest/shouldIgnore/tooManyLines.dat
-WARNING:root:Reason: File exceeds kB size limit of 10
-INFO:root:Finished in \d+.\d+ s"""
+        dotLogReStr = r"""INFO:Executing main optionset function
+INFO:Checking input options
+INFO:<tag><rawOpt> <setting> = \\@none none
+INFO:Generating valid files
+INFO:Valid files: \[.*\]
+INFO:Scrolling through files to set: \\@none none
+WARNING:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
+WARNING:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
+WARNING:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
+WARNING:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
+WARNING:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
+WARNING:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
+WARNING:Skipping: ./filesToTest/shouldIgnore/tooLarge10kB.dat
+WARNING:Reason: File exceeds kB size limit of 10
+WARNING:Skipping: ./filesToTest/shouldIgnore/tooManyLines.dat
+WARNING:Reason: File exceeds kB size limit of 10
+INFO:Finished in \d+.\d+ s"""
         reRegressionMatch = re.compile(dotLogReStr)
         self.assertTrue(test_regex(reRegressionMatch, logStr))
 
