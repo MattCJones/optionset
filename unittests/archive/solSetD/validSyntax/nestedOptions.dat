@@ -12,7 +12,7 @@ Lvl 0 # @nestedL0 a
 ##        Lvl 2 # *@nestedL2 b
 ##            Entering level 3
 ##
-##            myVar = C -12.34E-5 # @nestedVarOp ='myVar = (.*) '
+##            myVar = D -12.34E-5 # @nestedVarOp ='myVar = (.*) '
 ##        Lvl 2 # *@nestedL2 b
 #    Lvl 1 # *@nestedL1 b
 #Lvl 0 # *@nestedL0 b

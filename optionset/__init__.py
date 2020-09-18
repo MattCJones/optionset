@@ -10,12 +10,3 @@ Use -h to view help.
 """
 
 from .optionset import *
-
-__author__ = "Matthew C. Jones"
-__version__ = "20.09"
-
-__all__ = (
-        "optionset",
-        "__author__",
-        "__version__",
-        )

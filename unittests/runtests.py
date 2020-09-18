@@ -11,28 +11,32 @@ Email: matt.c.jones.aoe@gmail.com
 import unittest
 import os
 import re
-import subprocess
 import shlex
 import shutil
+import subprocess
 import sys
 
 from contextlib import redirect_stdout
 from io import StringIO
+from pathlib import Path
 from time import time
 
 sys.path.append('../optionset')
-from optionset import optionset
+from optionset import optionset, MAX_FLINES, MAX_FSIZE_KB
 
-RUNAPP = "../optionset/optionset.py"  # run the application
+AUX_DIR = Path("customAuxDir")
 BASENAME = "optionset.py"
-AUX_DIR = f"{os.path.expanduser('~')}/.optionset"
-LOG_PATH = f"{AUX_DIR}/log.{BASENAME}"
+BIN_PATH = Path("../optionset") / BASENAME
+RUN_APP = f"{BIN_PATH} --auxillary-dir={AUX_DIR}"
+LOG_PATH = AUX_DIR / f"log.{BASENAME}"
+CONFIG_PATH = AUX_DIR / "optionset.cfg"
+BASHCOMP_PATH = AUX_DIR / "bash_completion"
 FILES_TO_TEST_DIR = "filesToTest"
-ARCHIVE_DIR = "archive"
-SOL_DIR_A = f"{ARCHIVE_DIR}/solSetA"
-SOL_DIR_B = f"{ARCHIVE_DIR}/solSetB"
-SOL_DIR_C = f"{ARCHIVE_DIR}/solSetC"
-SOL_DIR_D = f"{ARCHIVE_DIR}/solSetD"
+ARCHIVE_DIR = Path("archive")
+SOL_DIR_A = ARCHIVE_DIR / "solSetA"
+SOL_DIR_B = ARCHIVE_DIR / "solSetB"
+SOL_DIR_C = ARCHIVE_DIR / "solSetC"
+SOL_DIR_D = ARCHIVE_DIR / "solSetD"
 
 F_skipTestSets = False
 
@@ -51,12 +55,20 @@ def test_regex(regex, strToSearch):
         return False
 
 
-def run_cmd(cmdStr):
+def run_cmd(cmdStr, check=True):
     """Run a command and return the output. """
     subproc = subprocess.run(shlex.split(cmdStr), capture_output=True,
-                             check=False)
+                             check=check)
     outputStr = subproc.stdout.decode('UTF-8')
     return outputStr, subproc.returncode
+
+
+def imported_optionset(*args, **kwargs):
+    """Run optionset function imported from module. """
+    inputArr = [*args]
+    inputArr.append("--auxillaryDir")
+    inputArr.append(AUX_DIR)
+    optionset(*args, **kwargs)
 
 
 def enable_testset_a():
@@ -73,12 +85,12 @@ def enable_testset_a():
             "@validCommentType Bash",
             "@validExtension dat",
             "@validSyntax difficultComments",
-            "~@$^&multipleTags a",
+            "~@$^multipleTags a",
             "@nestedVarOp ' -12.34e-5'",
             "@variableOption ' -81.2e-2'",
             )
     for defOptionStr in opSetStrs:
-        _, _ = run_cmd(f"{RUNAPP} {defOptionStr}")
+        _, _ = run_cmd(f"{RUN_APP} {defOptionStr}")
 
 
 def enable_testset_b():
@@ -95,12 +107,12 @@ def enable_testset_b():
             "@validCommentType CPP",
             "@validExtension nml",
             "@validSyntax difficultLine",
-            "~@$^&multipleTags b",
+            "~@$^multipleTags b",
             "@nestedVarOp 'eleventy two'",
             "@variableOption '112'",
             )
     for defOptionStr in opSetStrs:
-        _, _ = run_cmd(f"{RUNAPP} {defOptionStr}")
+        _, _ = run_cmd(f"{RUN_APP} {defOptionStr}")
 
 
 def enable_testset_c():
@@ -117,12 +129,12 @@ def enable_testset_c():
             "@validCommentType custom",
             "@validExtension none",
             "@validSyntax difficultComments",
-            "~@$^&multipleTags a",
+            "~@$^multipleTags a",
             "@nestedVarOp ' -+ intermediate C 12.34e-5'",
             "@variableOption ' -+ 12.34e-5 C'",
             )
     for defOptionStr in opSetStrs:
-        _, _ = run_cmd(f"{RUNAPP} {defOptionStr}")
+        _, _ = run_cmd(f"{RUN_APP} {defOptionStr}")
 
 
 def enable_testset_d():
@@ -139,12 +151,12 @@ def enable_testset_d():
             "@validCommentType custom",
             "@validExtension none",
             "@validSyntax difficultComments",
-            "~@$^&multipleTags a",
+            "~@$^multipleTags a",
             "@nestedVarOp ' -+ intermediate D 12.34e-5'",
             "@variableOption ' -+ 12.34e-5 D'",
             )
     for defOptionStr in opSetStrs:
-        _, _ = run_cmd(f"{RUNAPP} {defOptionStr}")
+        _, _ = run_cmd(f"{RUN_APP} {defOptionStr}")
 
     opSetStrs = (
             "@nestedL0 a",
@@ -153,10 +165,10 @@ def enable_testset_d():
             "@overlappingOption a",
             "@overlappingMultiline b",
             "@overlappingOptionShort none",
-            "@nestedVarOp 'C -12.34E-5'",
+            "@nestedVarOp 'D -12.34E-5'",
             )
     for defOptionStr in opSetStrs:
-        _, _ = run_cmd(f"{RUNAPP} {defOptionStr}")
+        _, _ = run_cmd(f"{RUN_APP} {defOptionStr}")
 
 
 def enable_default_options():
@@ -194,33 +206,44 @@ class TestIO(unittest.TestCase):
         """Test basic input and output. """
         reStr = r".*InputError.*[\r\n].*Invalid option name.*"
         reHasInputErr = re.compile(reStr)
-        outputStr, _ = run_cmd(f"{RUNAPP} @invalid@Option validSetting")
+        outputStr, _ = run_cmd(f"{RUN_APP} @invalid@Option validSetting")
         self.assertTrue(test_regex(reHasInputErr, outputStr),
                         "Invalid option")
 
         reStr = r".*InputError.*[\r\n].*Invalid setting name.*"
         reHasInputErr = re.compile(reStr)
-        outputStr, _ = run_cmd(f"{RUNAPP} @validOption @invalidSetting")
+        outputStr, _ = run_cmd(f"{RUN_APP} @validOption @invalidSetting")
         self.assertTrue(test_regex(reHasInputErr, outputStr),
                         msg="Invalid setting")
 
         reShowsUsage = re.compile("^usage:.*")
-        outputStr, _ = run_cmd(f"{RUNAPP} -h")
+        outputStr, _ = run_cmd(f"{RUN_APP} -h")
         self.assertTrue(test_regex(reShowsUsage, outputStr))
 
     def test_ignored(self):
         """Test ignored files and directories. """
         reHasIgnoreStr = re.compile(".*shouldIgnore.*")
-        outputStr, _ = run_cmd(f"{RUNAPP} -a")
+        outputStr, _ = run_cmd(f"{RUN_APP} -a")
         self.assertFalse(test_regex(reHasIgnoreStr, outputStr))
 
     def test_extensions(self):
         """Test various valid file extensions. """
-        outputStr, _ = run_cmd(f"{RUNAPP} -a @validExtension")
+        outputStr, _ = run_cmd(f"{RUN_APP} -a @validExtension")
         settingStrs = ('dat', 'nml', 'none', 'txt', 'org', 'orig', 'yaml',)
         for settingStr in settingStrs:
             reHasExtension = re.compile(f".*{settingStr}.*")
             self.assertTrue(test_regex(reHasExtension, outputStr))
+
+    def test_showfiles(self):
+        """Test functionality to show files of available options. """
+        matchStr = ".*"\
+            + r"filesToTest/validSyntax/difficultCommentPlacement\.dat "\
+            + r"filesToTest/validSyntax/multilineOption\.dat "\
+            + r"filesToTest/validSyntax/validSyntax\.dat" + os.linesep\
+            + "------------------------------------------------------------"
+        reHasFilePathsStr = re.compile(matchStr)
+        outputStr, _ = run_cmd(f"{RUN_APP} @validSyntax -f")
+        self.assertTrue(test_regex(reHasFilePathsStr, outputStr))
 
     ############################################################
     # Test Python import functionality
@@ -228,10 +251,10 @@ class TestIO(unittest.TestCase):
     def test_python_import(self):
         """Test that same output is found using both command line and Python
         import functionality. """
-        cmdLineOutputStr, _ = run_cmd(f"{RUNAPP} @val -a")
+        cmdLineOutputStr, _ = run_cmd(f"{RUN_APP} @val -a")
         fIO = StringIO()
         with redirect_stdout(fIO):  # capture standard out
-            optionset(["@val", "-a"])
+            imported_optionset(["@val", "-a"])
         pyImportOutputStr = fIO.getvalue()
         self.assertEqual(cmdLineOutputStr, pyImportOutputStr)
 
@@ -241,7 +264,7 @@ class TestIO(unittest.TestCase):
     def test_invalid(self):
         """Test invalid files and directories. """
         reInvalid = re.compile(".*ERROR.*")
-        outputStr, _ = run_cmd(f"{RUNAPP} -a")
+        outputStr, _ = run_cmd(f"{RUN_APP} -a")
         self.assertFalse(test_regex(reInvalid, outputStr))
 
     ############################################################
@@ -249,7 +272,7 @@ class TestIO(unittest.TestCase):
     ############################################################
     def test_comment_types(self):
         """Test various comment types. """
-        outputStr, _ = run_cmd(f"{RUNAPP} -a @validCommentType")
+        outputStr, _ = run_cmd(f"{RUN_APP} -a @validCommentType")
         settingStrs = ('Bash', 'CPP', 'MATLAB', 'NML', 'custom',)
         for settingStr in settingStrs:
             reCommentType = re.compile(f".*{settingStr}.*")
@@ -257,7 +280,7 @@ class TestIO(unittest.TestCase):
 
     def test_valid_syntax(self):
         """Test proper syntax of options and settings. """
-        outputStr, _ = run_cmd(f"{RUNAPP} -a @validSyntax")
+        outputStr, _ = run_cmd(f"{RUN_APP} -a @validSyntax")
         settingStrs = ('difficultPlacement', 'multiline', 'difficultLine',
                        'difficultComment',)
         for settingStr in settingStrs:
@@ -269,21 +292,21 @@ class TestIO(unittest.TestCase):
         varSettingStr = '1e-8'
         reSetting = re.compile(f".*{varSettingStr}.*")
 
-        outputStrBefore, _ = run_cmd(f"{RUNAPP} -a @variableOption")
+        outputStrBefore, _ = run_cmd(f"{RUN_APP} -a @variableOption")
         self.assertFalse(test_regex(reSetting, outputStrBefore))
 
-        runStr = f"{RUNAPP} -v @variableOption {varSettingStr}"
+        runStr = f"{RUN_APP} -v @variableOption {varSettingStr}"
         outputStrChange, _ = run_cmd(runStr)
         self.assertTrue(test_regex(reSetting, outputStrChange))
 
-        outputStrAfter, _ = run_cmd(f"{RUNAPP} -a @variableOption")
+        outputStrAfter, _ = run_cmd(f"{RUN_APP} -a @variableOption")
         self.assertTrue(test_regex(reSetting, outputStrAfter))
 
     def test_multiple_tags(self):
         """Test multiple tags in options. """
-        optionStr = r"~@$^&multipleTags"
-        outputStr, _ = run_cmd(f"{RUNAPP} -a {optionStr}")
-        reSyntax = re.compile(r".*\~\@\$\^\&multipleTags.*")
+        optionStr = r"~@$^multipleTags"
+        outputStr, _ = run_cmd(f"{RUN_APP} -a {optionStr}")
+        reSyntax = re.compile(r".*\~\@\$\^multipleTags.*")
         self.assertTrue(test_regex(reSyntax, outputStr))
 
     def test_multiple_files(self):
@@ -291,12 +314,12 @@ class TestIO(unittest.TestCase):
         optionStr = r"\@multiFile"
 
         settingStr = "singleLine"
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} {settingStr} -v")
         reMultiFileSingleLine = re.compile(f".*{optionStr} {settingStr}.*")
         self.assertTrue(test_regex(reMultiFileSingleLine, outputStr))
 
         settingStr = "multiLine"
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} {settingStr} -v")
         reMultiFileMultiLine = re.compile(f".*{optionStr} {settingStr}.*")
         self.assertTrue(test_regex(reMultiFileMultiLine, outputStr))
 
@@ -305,58 +328,58 @@ class TestIO(unittest.TestCase):
         # Standard overlapping option
         optionStr = r"\@overlappingOption"
         settingStr = "c"
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} {settingStr} -v")
         reOverlapping = re.compile(f".*{optionStr} {settingStr}.*")
         self.assertTrue(test_regex(reOverlapping, outputStr))
 
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} -a")
         reOverlapping = re.compile(f".*> {settingStr} <.*")
         self.assertTrue(test_regex(reOverlapping, outputStr))
 
         settingStr = "b"
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} {settingStr} -v")
         reOverlapping = re.compile(f".*{optionStr} {settingStr}.*")
         self.assertTrue(test_regex(reOverlapping, outputStr))
 
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} -a")
         reOverlapping = re.compile(f".*> {settingStr} <.*")
         self.assertTrue(test_regex(reOverlapping, outputStr))
 
         # Short overlapping option
         optionStr = r"\@overlappingOptionShort"
         settingStr = "c"
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} {settingStr} -v")
         reOverlappingShort = re.compile(f".*{optionStr} {settingStr}.*")
         self.assertTrue(test_regex(reOverlappingShort, outputStr))
 
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} -a")
         reOverlappingShort = re.compile(f".*> {settingStr} <.*")
         self.assertTrue(test_regex(reOverlappingShort, outputStr))
 
         # Overlapping multiline options
         optionStr = r"\@overlappingMultiline"
         settingStr = "c"
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} {settingStr} -v")
         reOverlappingMultiline = re.compile(f".*{optionStr} {settingStr}.*")
         self.assertTrue(test_regex(reOverlappingMultiline, outputStr))
 
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} -a")
         reOverlappingMultiline = re.compile(f".*> {settingStr} <.*")
         self.assertTrue(test_regex(reOverlappingMultiline, outputStr))
 
         settingStr = "b"
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} {settingStr} -v")
         reOverlappingMultiline = re.compile(f".*{optionStr} {settingStr}.*")
         self.assertTrue(test_regex(reOverlappingMultiline, outputStr))
 
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} -a")
         reOverlappingMultiline = re.compile(f".*> {settingStr} <.*")
         self.assertTrue(test_regex(reOverlappingMultiline, outputStr))
 
     def test_nested_options(self):
         """Test multi-scoped options. """
         optionStr = r"\@nested"
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} -a")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} -a")
 
         optionStr = r"\@nestedL0"
         reNested = re.compile(f".*{optionStr}.*")
@@ -376,36 +399,77 @@ class TestIO(unittest.TestCase):
 
         optionStr = r"\@nestedVarOp"
         settingStr = r" 8.23e-3"
-        outputStr, _ = run_cmd(f"{RUNAPP} {optionStr} {settingStr} -v")
+        outputStr, _ = run_cmd(f"{RUN_APP} {optionStr} {settingStr} -v")
         reNested = re.compile(f".*{settingStr}.*{optionStr}.*")
         self.assertTrue(test_regex(reNested, outputStr))
 
     ############################################################
+    # Test auxillary directory files
+    ############################################################
+    def test_bash_completion(self):
+        """Test that Bash completion file is properly written. """
+        _, _ = run_cmd(f"rm -f {CONFIG_PATH}")
+        outputStr, _ = run_cmd(f"{RUN_APP} @none none")
+        with open(BASHCOMP_PATH, 'r') as file:
+            bashCompStr = file.read()
+        shortOpts = "'-H' '-a' '-d' '-f' '-h' '-n' '-q' '-v'"
+        longOpts = ("'--available' '--bash-completion' '--debug' '--help' "
+                    "'--help-full' '--help-full' '--no-log' '--quiet' "
+                    "'--show-files' '--verbose' '--version'")
+        bashCompReStr = rf"""#!/bin/bash
+# Auto-generated Bash completion settings for optionset.py
+# Run 'source customAuxDir/bash_completion' to enable
+.*
+\s*{shortOpts}
+\s*{longOpts}
+.*
+complete -F _optionset os
+complete -F _optionset optionset"""
+        reRegressionMatch = re.compile(bashCompReStr, re.DOTALL)
+        self.assertTrue(test_regex(reRegressionMatch, bashCompStr))
+
+    def test_config_file(self):
+        """Test that configuration file is properly written. """
+        _, _ = run_cmd(f"rm -f {CONFIG_PATH}")
+        outputStr, _ = run_cmd(f"{RUN_APP} @none none")
+        with open(CONFIG_PATH, 'r') as file:
+            cfgStr = file.read()
+        cfgReStr = rf"""\[Files\]
+ignoreDirs = .*
+ignoreFiles = .*
+maxFileLines = {MAX_FLINES}
+maxFileSizeKb = {MAX_FSIZE_KB}"""
+        reRegressionMatch = re.compile(cfgReStr)
+        self.assertTrue(test_regex(reRegressionMatch, cfgStr))
+
+    ############################################################
     # Regression test: show that output is unchanged in with new version
     ############################################################
-    def test_dotlog_output(self):
-        f"""Test that {LOG_PATH} remains unchanged for basic input. """
-        outputStr, _ = run_cmd(f"{RUNAPP} @none none")
+    def test_log_output(self):
+        """Regression test of log output. """
+        outputStr, _ = run_cmd(f"{RUN_APP} @none none")
         with open(LOG_PATH, 'r') as file:
             logStr = file.read()
-        dotLogReStr = r"""INFO:Executing main optionset function
+        logReStr = r"""INFO:Executing main optionset function
 INFO:Checking input options
+INFO:Reading program settings from \w+/optionset.cfg:
+INFO:.*
 INFO:<tag><rawOpt> <setting> = \\@none none
 INFO:Generating valid files
 INFO:Valid files: \[.*\]
 INFO:Scrolling through files to set: \\@none none
-WARNING:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
+WARNING:Skipping: filesToTest/shouldIgnore/binaryFile.dat
 WARNING:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
-WARNING:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
+WARNING:Skipping: filesToTest/shouldIgnore/binaryFile.dat
 WARNING:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
-WARNING:Skipping: ./filesToTest/shouldIgnore/binaryFile.dat
+WARNING:Skipping: filesToTest/shouldIgnore/binaryFile.dat
 WARNING:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
-WARNING:Skipping: ./filesToTest/shouldIgnore/tooLarge10kB.dat
+WARNING:Skipping: filesToTest/shouldIgnore/tooLarge10kB.dat
 WARNING:Reason: File exceeds kB size limit of 10
-WARNING:Skipping: ./filesToTest/shouldIgnore/tooManyLines.dat
+WARNING:Skipping: filesToTest/shouldIgnore/tooManyLines.dat
 WARNING:Reason: File exceeds kB size limit of 10
 INFO:Finished in \d+.\d+ s"""
-        reRegressionMatch = re.compile(dotLogReStr)
+        reRegressionMatch = re.compile(logReStr)
         self.assertTrue(test_regex(reRegressionMatch, logStr))
 
 
@@ -437,7 +501,8 @@ class TestSets(unittest.TestCase):
         """Test Set A (default). """
         ut_print("\nEnabling Test Set A")
         enable_testset_a()
-        outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_A}")
+        outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_A}",
+                               check=False)
         self.assertEqual(outputStr, "",
                          msg=self.checkDiffMsg.format(diffOutput=outputStr))
 
@@ -446,7 +511,8 @@ class TestSets(unittest.TestCase):
         """Test Set B. """
         ut_print("\nEnabling Test Set B")
         enable_testset_b()
-        outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_B}")
+        outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_B}",
+                               check=False)
         self.assertEqual(outputStr, "",
                          msg=self.checkDiffMsg.format(diffOutput=outputStr))
 
@@ -455,7 +521,8 @@ class TestSets(unittest.TestCase):
         """Test Set C. """
         ut_print("\nEnabling Test Set C")
         enable_testset_c()
-        outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_C}")
+        outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_C}",
+                               check=False)
         self.assertEqual(outputStr, "",
                          msg=self.checkDiffMsg.format(diffOutput=outputStr))
 
@@ -464,7 +531,8 @@ class TestSets(unittest.TestCase):
         """Test Set D. """
         ut_print("\nEnabling Test Set D")
         enable_testset_d()
-        outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_D}")
+        outputStr, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_D}",
+                               check=False)
         self.assertEqual(outputStr, "",
                          msg=self.checkDiffMsg.format(diffOutput=outputStr))
 
