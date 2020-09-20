@@ -15,8 +15,8 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-//application     icoFoam; // @solver ico
-application     icoFoam; // @solver simple
+//application     icoFoam; // ~solver ico
+application     icoFoam; // ~solver simple
 
 startFrom       startTime;
 
@@ -24,7 +24,7 @@ startTime       0;
 
 stopAt          endTime;
 
-endTime         3.43; // @endTime ='endTime\s+([^ ]+);' // adjust end time
+endTime         1.23; // ~endTime ='endTime\s+([^ ]+);' // adjust end time
 
 deltaT          0.005;
 

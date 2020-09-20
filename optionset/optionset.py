@@ -322,7 +322,6 @@ def _uncomment(line, line_num, com_ind):
 @_log_before_after_commenting  # requires line, line_num as first args
 def _comment(line, line_num, com_ind):
     """Comment a line. Input requires comment indicator string. """
-    print("DBEUG", com_ind, line)
     line = com_ind + line
     return line
 
@@ -383,7 +382,7 @@ complete -F _optionset {bashcomp_cmd_b}"""
     gathered_options_str = ""
     options_with_settings_template = """
                 {option_str})
-                    COMPREPLY=($(compgen -W "'{settings_str}'" -- ${{cur}}))
+                    COMPREPLY=($(compgen -W "{settings_str}" -- ${{cur}}))
                     ;;"""
     options_with_settings_str = ""
     bashcomp_cmd = BASHCOMP_CMD
@@ -398,7 +397,7 @@ complete -F _optionset {bashcomp_cmd_b}"""
             settings_str = ""
             for sub_item in sorted(item[1].items()):
                 setting_str = sub_item[0]
-                settings_str += " " + setting_str
+                settings_str += " " + f"'{setting_str}'"
             options_with_settings_str += \
                 options_with_settings_template.format(**locals())
 

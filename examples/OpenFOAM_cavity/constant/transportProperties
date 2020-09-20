@@ -15,9 +15,26 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-nu              [0 2 -1 0 0 0 0] 0.01; // @nu default
-//nu              [0 2 -1 0 0 0 0] 1e-6; // @nu water
-//nu              [0 2 -1 0 0 0 0] 1.5e-5; // @nu air
+//nu              [0 2 -1 0 0 0 0] 0.01; // ~nu default
+nu              [0 2 -1 0 0 0 0] 1e-6; // ~nu water
+//nu              [0 2 -1 0 0 0 0] 1.5e-5; // ~nu air
 
+//phases (water air); // *~enableMultiphase yes
+//
+//water
+//{
+//    transportModel  Newtonian;
+//    nu              1e-06;
+//    rho             998.2;
+//}
+//
+//air
+//{
+//    transportModel  Newtonian;
+//    nu              1.48e-05;
+//    rho             1;
+//} // *~enableMultiphase yes
+
+ // ~enableMultiphase no
 
 // ************************************************************************* //

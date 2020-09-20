@@ -1,4 +1,6 @@
 #!/bin/bash
+# Provide illustrative example of how to use the Optionset utility
+# Run this script with './Allrun'
 cd ${0%/*} || exit 1    # Run from this directory
 
 # Source tutorial run functions
@@ -7,9 +9,10 @@ cd ${0%/*} || exit 1    # Run from this directory
 reset_options()
 {
     echo "Resetting options."
-    optionset.py @nu default -q
-    optionset.py @solver ico -q
-    optionset.py @endTime 0.5 -q
+    optionset.py ~nu default -q
+    optionset.py ~solver ico -q
+    optionset.py ~endTime 0.5 -q
+    optionset.py ~enableMultiphase no
 }
 
 reset_case()
@@ -20,6 +23,7 @@ reset_case()
 
 run_case()
 {
+    cp -r 0 0.orig
     runApplication blockMesh
     runApplication $(getApplication)
 }
@@ -33,43 +37,53 @@ request_keypress()
 {
     echo
     print_line
-    read -n 1 -s -r -p "Press any key to continue"
-    echo
+    echo "Press any key to continue"
     print_line
-    echo
+    read -n 1 -s -r -p " "
 }
 
 print_line
 reset_options
-echo "View help with optionset.py -h"
-echo "The currently set options can be viewed with \"optionset.py -a\""
-echo "Currently set options:"
+echo "View help with 'optionset.py -h'":
+request_keypress
+optionset.py -h
+request_keypress
+
+echo "The currently set options can be viewed with 'optionset.py -a'":
+request_keypress
 optionset.py -a
 request_keypress
 
-echo "View \"system/controlDict\" and \"constant/transportProperties\" to see
+echo "To view what files these options are prescribed in run 'optionset.py -f'":
+request_keypress
+optionset.py -f
+request_keypress
+
+echo "View 'system/controlDict' and 'constant/transportProperties' to see
 how these custom options are set."
-echo "We will change the solver to simpleFoam using \"optionset.py @solver simple -v\""
-optionset.py @solver simple -v
-echo "\nNotice that the -v specifier allowed us to see the modified lines in
-\"system/controlDict\" and \"constant/transportProperties\""
+echo "We will change the solver to simpleFoam using 'optionset.py ~solver simple -v'":
+request_keypress
+optionset.py ~solver simple -v
+echo
+echo "Notice that the -v specifier allowed us to see the modified lines in
+'system/controlDict' and 'constant/transportProperties'"
 
 request_keypress
-echo "We will change the viscosity to that of water using \"optionset.py @nu water -v\""
-optionset.py @nu water -v
+echo "We will change the viscosity to that of water using 'optionset.py ~nu water -v'"
 request_keypress
-echo "Finally let's to the end time to 1.23 seconds \"optionset.py @endTime 1.23 -v\""
-optionset.py @endTime 1.23 -v
-
+optionset.py ~nu water -v
 request_keypress
-echo "Finally let's to the end time to 1.23 seconds \"optionset.py @endTime 1.23 -v\""
+echo "Finally let's change the end time to 1.23 seconds 'optionset.py ~endTime 1.23 -v'"
+request_keypress
+optionset.py ~endTime 1.23 -v
 
 request_keypress
 echo "To run the actual OpenFOAM case, first make sure OpenFOAM is installed."
 echo "Next, run the commands:
     runApplication blockMesh
     runApplication $(getApplication) "
-echo "Or, edit this run script and use the \"run_case\" function"
+echo "Or, edit this run script and use the 'run_case' function"
+
 #run_case # UNCOMMENT THIS TO RUN THE OPENFOAM CASE
 
 #------------------------------------------------------------------------------

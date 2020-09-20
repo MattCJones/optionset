@@ -10,13 +10,16 @@ Email: matt.c.jones.aoe@gmail.com
 """
 import subprocess
 
-def check_format(pyFilePath):
+
+def check_format(py_file_path):
     """Check format of Python file. """
     print("="*60)
-    runStr = f"pycodestyle -v {pyFilePath}"
-    subproc = subprocess.run(runStr, shell=True, capture_output=True)
+    run_str = f"pycodestyle -v {py_file_path}"
+    subproc = subprocess.run(run_str, shell=True, capture_output=True,
+                             check=False)
     print(subproc.stdout.decode('UTF-8'), end='')
     print("="*60)
+
 
 check_format("../optionset/optionset.py")
 check_format("runtests.py")
