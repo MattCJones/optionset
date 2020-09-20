@@ -17,7 +17,7 @@ scriptList = ["optionset/optionset.py", ]
 
 if __name__ == "__main__":
     with open("README.md", "r") as fh:
-        long_description = fh.read()
+        longDescription = fh.read()
 
     setup(
         name='optionset',
@@ -25,7 +25,7 @@ if __name__ == "__main__":
         packages=['optionset', ],
         description="Enable/disable user-predefined options in text-based "
         "dictionaries",
-        long_description=long_description,
+        long_description=longDescription,
         long_description_content_type="text/markdown",
         url=None,
         author=__author__,

@@ -17,10 +17,10 @@ from runtests import run_cmd
 times = []
 N = 100
 for i in range(N):
-    startTime = time.time()
-    outputStr, _ = run_cmd("optionset.py -q @op 2")
-    thisTime = time.time() - startTime
-    times.append(thisTime)
-    print("Time [s]: {:1.5f}".format(thisTime))
+    start_time = time.time()
+    output_str, _ = run_cmd("../optionset/optionset.py -q @op 2")
+    this_time = time.time() - start_time
+    times.append(this_time)
+    print("Time [s]: {:1.5f}".format(this_time))
 
 print("Avg time [s]: {:1.5f}".format(np.mean(times)))

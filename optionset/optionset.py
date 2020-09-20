@@ -39,17 +39,18 @@ __all__ = (
         )
 
 # ############################################################ #
-# Set up input argument parser
+# Set up global constants, variables, and parser
 # ############################################################ #
+# Set up global constants
 BASENAME = Path(__file__).name
-BASHCOMPCMD = 'os'  # bash-completion run command
+BASHCOMP_CMD = 'os'  # bash-completion run command
 BASENAME_NO_EXT = Path(__file__).stem
-RUNCMD = BASHCOMPCMD if '--bash-ompletion' in argv else BASENAME
+RUNCMD = BASHCOMP_CMD if '--bash-ompletion' in argv else BASENAME
 AUX_DIR = Path("~/.optionset").expanduser()
 LOG_NAME = f"log.{BASENAME}"
 BASHCOMP_NAME = "bash_completion"
 CONFIG_NAME = f"{BASENAME_NO_EXT}.cfg"
-BASH_FUNC_STR = f"""function {BASHCOMPCMD} {{
+BASH_FUNC_STR = f"""function {BASHCOMP_CMD} {{
     {BASENAME} "$@" --bash-completion;
     source {AUX_DIR/BASHCOMP_NAME};
     }}"""
@@ -79,17 +80,17 @@ and the dictionary file will be modified and re-written as,
 application simpleFoam // @simulation steady
 
 where the steady solver 'simpleFoam' is now uncommented and active. Here
-@simulation is the 'option' while transient and steady are the 'settings'.
-An unlimited number of unique options and settings are allowed.  Each can only
-be composed of alphanumerical words with dots, pluses, minuses, and
-underscores. Note that the first one or more characters in a option must be a
-special symbol (non-bracket, non-comment-indicator, non-option/setting) such as
-'~@$^&=|?'.
+'@simulation' is the 'option' while 'transient' and 'steady' are the
+'settings'.  An unlimited number of unique options and settings are allowed.
+Each can only be composed of alphanumerical words with dots, pluses, minuses,
+and underscores. Note that the first one or more characters in a option must be
+a special symbol (non-bracket, non-comment-indicator, non-option/setting) such
+as '~@$^&=|?'.
 
 Use '{RUNCMD} -a ' to view all of the options that you have set, or even
 '{RUNCMD} -a @simple' to view all options that begin with '@simple'.
 
-To avoid comment clutter, multi-line options are encouraged by writing * in
+To avoid comment clutter, multi-line options are encouraged by writing '*' in
 front of the first and last options in a series (see text on left),
 
 functions        // *@forces on    | <---  |   functions        // @forces on
@@ -104,83 +105,37 @@ dictionary text file must be formatted with a Perl-styled regular expression
 
 variable option = 5.5; // @varOption ='= (.*);'
 
-To change 'variable option' to 6.7 use, '{RUNCMD} @varOption 6.7'.
-The file becomes,
+To change the variable option to 6.7 use, '{RUNCMD} @varOption 6.7', and the
+file becomes,
 
 variable option = 6.7; // @varOption ='= (.*);'
 
-To enable Bash tab completion add the following line to '~/.bashrc':
+To enable Bash tab completion add the following lines to '~/.bashrc',
 
 {BASH_FUNC_STR}
 
-and run this program using '{BASHCOMPCMD}' instead of '{BASENAME}'
+and run the program using '{BASHCOMP_CMD}' instead of '{BASENAME}'.
 
 Using your favorite scripting language, it is convenient to glue this program
-into more advanced option variation routines to create advanced parameter
-sweeps and case studies.  Note that it is possible to directly import this
-funtionality into a Python script using 'from optionset import optionset' and
-feeding an array of command line arguments to the optionset() function.
+into more advanced option variation routines to create parameter sweeps and
+case studies.  Note that it is possible to directly import this funtionality
+into a Python script using 'from optionset import optionset' and feeding an
+array of command line arguments to the optionset() function.
 """
-EPILOG = ""  # display after argument help
 
-parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        prog=RUNCMD, description=SHORT_HELP_DESCRIPTION, epilog=EPILOG)
-parser.add_argument(
-        'option', metavar='option', nargs='?', type=str, default="",
-        help='\'option\' name')
-parser.add_argument(
-        'setting', metavar='setting', nargs='?', type=str, default="",
-        help='\'setting\' for given \'option\'')
-parser.add_argument(
-        '-H', '--help-full', dest='helpFull', default=False,
-        action='store_true',
-        help=f"show full help message and exit")
-parser.add_argument(
-        '-a', '--available', dest='available', default=False,
-        action='store_true',
-        help=("show available option-setting combinations; "
-              "allows for unix-style glob-expression searching; "
-              "'-a' is implicitely enabled when no 'setting' is input"))
-parser.add_argument(
-        '-f', '--show-files', dest='showFiles', default=False,
-        action='store_true',
-        help=f"show files associate with available options")
-parser.add_argument(
-        '-v', '--verbose', dest='verbose', default=False, action='store_true',
-        help="turn on verbose output")
-parser.add_argument(
-        '-q', '--quiet', dest='quiet', default=False, action='store_true',
-        help="turn off all standard output")
-parser.add_argument(
-        '-d', '--debug', dest='debug', default=False, action='store_true',
-        help="turn on debug output in log file")
-parser.add_argument(
-        '-n', '--no-log', dest='noLog', default=False, action='store_true',
-        help=f"do not write log file to '{AUX_DIR/LOG_NAME}'")
-parser.add_argument(
-        '--bash-completion', dest='bashCompletion', default=False,
-        action='store_true',
-        help=("auto-generate bash tab-completion script "
-              f"'{AUX_DIR/BASHCOMP_NAME}'"))
-parser.add_argument(
-        '--version', dest='version', default=False, action='store_true',
-        help="show version and exit")
-parser.add_argument(
-        '--auxillary-dir', dest='auxDir', type=str,
-        default=AUX_DIR, help=argparse.SUPPRESS)
-
-# Initialize global variables
+# Default configuration
 IGNORE_DIRS = ['.[a-zA-Z0-9]*', '__pycache__', '[0-9]', '[0-9][0-9]*',
                '[0-9].[0-9]*', 'log', 'logs', 'processor[0-9]*', 'archive',
                'trash',
                ]  # UNIX-based wild cards
-IGNORE_FILES = [BASENAME, CONFIG_NAME, LOG_NAME, '.*', 'log.*', '*.log',
-                '*.py', '*.pyc', '*.gz', '*.png', '*.jpg', '*.obj', '*.stl',
-                '*.stp', '*.step',
+IGNORE_FILES = [BASENAME, LOG_NAME, BASHCOMP_NAME, CONFIG_NAME, '.*', 'log.*',
+                '*.log', '*.py', '*.pyc', '*.gz', '*.png', '*.jpg', '*.obj',
+                '*.stl', '*.stp', '*.step',
                 ]  # UNIX-based wild cards
 MAX_FLINES = 9999  # maximum lines per file
 MAX_FSIZE_KB = 10  # maximum file size, kilobytes
+DEFAULT_CONFIG = {'ignore_dirs': IGNORE_DIRS, 'ignore_files': IGNORE_FILES,
+                  'max_flines': MAX_FLINES, 'max_fsize_kb': MAX_FSIZE_KB, }
 
 # Regular expression frameworks
 ANY_COMMENT_IND = r'(?:[#%!]|//|--)'  # comment indicators: # % // -- !
@@ -195,17 +150,17 @@ BRACKETS = r'[()<>\[\]]'
 # Implicitely match tag. Do not include any of these:
 ANY_TAG = rf'(?:(?!\s|{ANY_COMMENT_IND}|{MULTI_TAG}|{ANY_WORD}|{BRACKETS}).)'
 # Explicitely specify tag with: ANY_TAG = r'[~@$^&\=\|\?]'
-WHOLE_COMMENT = (r'(?P<comInd>{comInd})'
-                 r'(?P<wholeCom>.*\s+{mtag}*{tag}+{rawOpt}\s+{setting}\s.*\n?)'
-                 )
-UNCOMMENTED_LINE = (r'^(?P<nestedComInds>{nestedComInds})'
-                    r'(?P<nonCom>\s*(?:(?!{comInd}).)+)' + WHOLE_COMMENT)
-COMMENTED_LINE = (r'^(?P<nestedComInds>{nestedComInds})'
-                  r'(?P<nonCom>\s*{comInd}(?:(?!{comInd}).)+)' + WHOLE_COMMENT)
-ONLY_OPTION_SETTING = r'({mtag}*)({tag}+)({rawOpt})\s+({setting})\s?'
-GENERIC_RE_VARS = {'comInd': ANY_COMMENT_IND, 'mtag': MULTI_TAG,
-                   'tag': ANY_TAG, 'rawOpt': ANY_RAW_OPTION,
-                   'setting': ANY_SETTING, 'nestedComInds': ''}
+WHOLE_COMMENT = (r'(?P<com_ind>{com_ind})'
+                 r'(?P<whole_com>.*\s+{mtag}*{tag}+{raw_opt}'
+                 r'\s+{setting}\s.*\n?)')
+UNCOMMD_LINE = (r'^(?P<nested_com_inds>{nested_com_inds})'
+                r'(?P<non_com>\s*(?:(?!{com_ind}).)+)' + WHOLE_COMMENT)
+COMMD_LINE = (r'^(?P<nested_com_inds>{nested_com_inds})'
+              r'(?P<non_com>\s*{com_ind}(?:(?!{com_ind}).)+)' + WHOLE_COMMENT)
+ONLY_OPTN_SETTING = r'({mtag}*)({tag}+)({raw_opt})\s+({setting})\s?'
+GENERIC_RE_VARS = {'com_ind': ANY_COMMENT_IND, 'mtag': MULTI_TAG,
+                   'tag': ANY_TAG, 'raw_opt': ANY_RAW_OPTION,
+                   'setting': ANY_SETTING, 'nested_com_inds': ''}
 
 # Error messages
 INCOMPLETE_INPUT_MSG = f'''InputError:
@@ -234,15 +189,66 @@ must match the user specified regular expression in quotes. This regular
 expression must have one and only one set of parentheses surrounding the
 variable option to be matched such as '(.*)'.  Otherwise, To specify literal
 parentheses in the regex, use '\('.
-\r\nFile:{fileName}
-Line {lineNum}:{line}
+\r\nFile:{filename}
+Line {line_num}:{line}
 To view help try:
     "%(runCmd)s -h"''' % {'anyVar': ANY_VAR_SETTING, 'runCmd': RUNCMD}
-INVALID_REGEX_GROUP_MSG = '''InvalidRegexGroupError: {specificProblem}
+INVALID_REGEX_GROUP_MSG = '''InvalidRegexGroupError: {specific_problem}
 A regular expression 'group' is denoted by a surrounding pair of parentheses
 '()' The commented variable setting should be the only group.' Use '()' to
 surround only the variable setting group in the commented regular expression.
 '''
+# Initialize global parser
+parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, prog=RUNCMD,
+        description=SHORT_HELP_DESCRIPTION)
+parser.add_argument(
+        'option', metavar='option', nargs='?', type=str, default="",
+        help='\'option\' name')
+parser.add_argument(
+        'setting', metavar='setting', nargs='?', type=str, default="",
+        help='\'setting\' for given \'option\'')
+parser.add_argument(
+        '-H', '--help-full', dest='help_full', default=False,
+        action='store_true',
+        help=f"show full help message and exit")
+parser.add_argument(
+        '-a', '--available', dest='available', default=False,
+        action='store_true',
+        help=("show available option-setting combinations; "
+              "allows for unix-style glob-expression searching; "
+              "'-a' is implicitely enabled when no 'setting' is input"))
+parser.add_argument(
+        '-f', '--show-files', dest='show_files', default=False,
+        action='store_true',
+        help=f"show files associate with available options")
+parser.add_argument(
+        '-v', '--verbose', dest='verbose', default=False, action='store_true',
+        help="turn on verbose output")
+parser.add_argument(
+        '-q', '--quiet', dest='quiet', default=False, action='store_true',
+        help="turn off all standard output")
+parser.add_argument(
+        '-d', '--debug', dest='debug', default=False, action='store_true',
+        help="turn on debug output in log file")
+parser.add_argument(
+        '-n', '--no-log', dest='no_log', default=False, action='store_true',
+        help=f"do not write log file to '{AUX_DIR/LOG_NAME}'")
+parser.add_argument(
+        '--bash-completion', dest='bashcomp', default=False,
+        action='store_true',
+        help=("auto-generate bash tab-completion script "
+              f"'{AUX_DIR/BASHCOMP_NAME}'"))
+parser.add_argument(
+        '--version', dest='version', default=False, action='store_true',
+        help="show version and exit")
+parser.add_argument(
+        '--auxiliary-dir', dest='aux_dir', type=str,
+        default=AUX_DIR, help=argparse.SUPPRESS)
+
+# Initialize global variables
+g_f_quiet = False
+g_f_verbose = False
 
 # ############################################################ #
 # Define classes
@@ -253,97 +259,101 @@ class FileVarsDatabase:
     """Data structure to hold variables used in file processing.
        Input file path, user input structure, and comment index.
     """
-    def __init__(self, filePath, inputDb):
+    def __init__(self, filepath, input_db):
         """Initialize variables. """
-        self.filePath = filePath
-        self.inputDb = inputDb
+        self.filepath = filepath
+        self.input_db = input_db
 
-        self.F_fileModified = False  # True if file is modified
-        self.F_multiLineActive = False  # if active, toggle line
-        self.F_multiCommented = None  # True if multi-line option is commented
-        self.nestedLvl = 0  # +1 level every commented multi-line option
-        self.nestedIncrement = 0  # increments the nested level
+        self.f_filemodified = False  # True if file is modified
+        self.f_multiline_active = False  # if active, toggle line
+        self.f_multicommd = None  # True if multi-line option is commented
+        self.nested_lvl = 0  # +1 level every commented multi-line option
+        self.nested_increment = 0  # increments the nested level
 
         # Get string that signifies a commented line
-        self.comInd = _get_comment_indicator(filePath)
+        self.com_ind = _get_comment_indicator(filepath)
 
         # Prepare regular expressions
-        self.reVars = GENERIC_RE_VARS
-        self.reVars['comInd'] = self.comInd  # set file-specific indicator
+        self.re_vars = GENERIC_RE_VARS
+        self.re_vars['com_ind'] = self.com_ind  # set file-specific indicator
 
         # Prepare nested option database
-        self.nestedOptionDb = OrderedDict()
+        self.nested_option_db = OrderedDict()
 
 
 # ############################################################ #
 # Define utility functions
 # ############################################################ #
 
-def _print_and_log(printStr):
+def _print_and_log(print_str):
     """Print to standard out and INFO level in log. """
-    logging.info(printStr)
-    if not F_QUIET:
-        print(printStr)
+    logging.info(print_str)
+    if not g_f_quiet:
+        print(print_str)
 
 
 def _log_before_after_commenting(func):
     """Wrapper to add file modifications to the log file. """
     @wraps(func)
     def log(*args_, **kwargs):
-        lineBeforeMod = '[{:>4} ]{}'.format(args_[2], args_[0].rstrip('\r\n'))
-        returnStr = func(*args_, **kwargs)
-        lineAfterMod = '[{:>4}\']{}'.format(args_[2], returnStr.rstrip('\r\n'))
-        if F_VERBOSE:
-            _print_and_log(lineBeforeMod)
-            _print_and_log(lineAfterMod)
+        line_, line_num_ = args_[0], args_[1]
+        line_before_mod = '[{:>4} ]{}'.format(line_num_,
+                                              line_.rstrip('\r\n'))
+        return_str = func(*args_, **kwargs)
+        line_after_mod = '[{:>4}\']{}'.format(line_num_,
+                                              return_str.rstrip('\r\n'))
+        if g_f_verbose:
+            _print_and_log(line_before_mod)
+            _print_and_log(line_after_mod)
         else:
-            logging.info(lineBeforeMod)
-            logging.info(lineAfterMod)
-        return returnStr
+            logging.info(line_before_mod)
+            logging.info(line_after_mod)
+        return return_str
     return log
 
 
-@_log_before_after_commenting
-def _uncomment(line, comInd, lineNum):
+@_log_before_after_commenting  # requires line, line_num as first args
+def _uncomment(line, line_num, com_ind):
     """Uncomment a line. Input requires comment indicator string. """
-    line = re.sub(rf'^(\s*)({comInd})', r"\1", line)
+    line = re.sub(rf'^(\s*)({com_ind})', r"\1", line)
     return line
 
 
-@_log_before_after_commenting
-def _comment(line, comInd, lineNum):
+@_log_before_after_commenting  # requires line, line_num as first args
+def _comment(line, line_num, com_ind):
     """Comment a line. Input requires comment indicator string. """
-    line = comInd + line
+    print("DBEUG", com_ind, line)
+    line = com_ind + line
     return line
 
 
 @contextmanager
-def _handle_errors(errTypes, msg):
+def _handle_errors(err_types, msg):
     """Use 'with:' to handle an error and print a message. """
     try:
         yield
-    except errTypes as e:
+    except err_types as err:
         _print_and_log(msg)
+        logging.debug(err)
         exit()
 
 
-def _write_bash_completion_file(opsDb, varOpsDb,
-                               bashCompPath=AUX_DIR/BASHCOMP_NAME):
+def _write_bashcompletion_file(ops_db, var_ops_db,
+                               bashcomp_path=AUX_DIR/BASHCOMP_NAME):
     """Write file that can be sourced to enable tab completion for this tool.
     """
-    usageStr = parser.format_usage()
-    helpStr = parser.format_help()
-    reShortUsage = re.compile(rf"\s(-\w+)")
-    reLongUsage = re.compile(rf"\s(--[a-zA-Z\-]+)")
-    defaultCmdOptsShort = [
-            f"'{opt}'" for opt in sorted(reShortUsage.findall(helpStr))]
-    defaultCmdOptsLong = [
-            f"'{opt}'" for opt in sorted(reLongUsage.findall(helpStr))]
-    defaultCmdOptsShortStr = ' '.join(defaultCmdOptsShort)
-    defaultCmdOptsLongStr = ' '.join(defaultCmdOptsLong)
-    fileContentsTemplate = r"""#!/bin/bash
-# Auto-generated Bash completion settings for {baseRunCmd}
-# Run 'source {bashCompPath}' to enable
+    help_str = parser.format_help()
+    re_short_usage = re.compile(r"\s(-\w+)")
+    re_long_usage = re.compile(r"\s(--[a-zA-Z\-]+)")
+    default_cmd_opts_short = [
+        f"'{opt}'" for opt in sorted(re_short_usage.findall(help_str))]
+    default_cmd_opts_long = [
+        f"'{opt}'" for opt in sorted(re_long_usage.findall(help_str))]
+    default_cmd_opts_short_str = ' '.join(default_cmd_opts_short)
+    default_cmd_opts_long_str = ' '.join(default_cmd_opts_long)
+    file_contents_template = r"""#!/bin/bash
+# Auto-generated Bash completion settings for {base_run_cmd}
+# Run 'source {bashcomp_path}' to enable
 optRegex="\-[a-z], --[a-z]*"
 _optionset()
 {{
@@ -355,12 +365,12 @@ _optionset()
     case ${{COMP_CWORD}} in
         1)
             COMPREPLY=($(compgen -W "
-                {defaultCmdOptsShortStr}
-                {defaultCmdOptsLongStr}{gatheredOptionsStr}
+                {default_cmd_opts_short_str}
+                {default_cmd_opts_long_str}{gathered_options_str}
                 " -- ${{cur}}))
             ;;
         2)
-            case ${{prev}} in {optionsWithSettingsStr}
+            case ${{prev}} in {options_with_settings_str}
             esac
             ;;
         *)
@@ -368,112 +378,116 @@ _optionset()
             ;;
     esac
 }}
-complete -F _optionset {bashCompCmd}
-complete -F _optionset {bashCompCmdB}"""
-    gatheredOptionsStr = ""
-    optionsWithSettingsTemplate = """
-                {optionStr})
-                    COMPREPLY=($(compgen -W "'{settingsStr}'" -- ${{cur}}))
+complete -F _optionset {bashcomp_cmd}
+complete -F _optionset {bashcomp_cmd_b}"""
+    gathered_options_str = ""
+    options_with_settings_template = """
+                {option_str})
+                    COMPREPLY=($(compgen -W "'{settings_str}'" -- ${{cur}}))
                     ;;"""
-    optionsWithSettingsStr = ""
-    bashCompCmd = BASHCOMPCMD
-    bashCompCmdB = BASENAME_NO_EXT
-    baseRunCmd = BASENAME
+    options_with_settings_str = ""
+    bashcomp_cmd = BASHCOMP_CMD
+    bashcomp_cmd_b = BASENAME_NO_EXT
+    base_run_cmd = BASENAME
 
-    for db in (opsDb, varOpsDb):
+    for db in (ops_db, var_ops_db):
         for item in sorted(db.items()):
-            optionStr = item[0].replace(r'$', r'\$')
-            gatheredOptionsStr += os.linesep + f"                '{optionStr}'"
-            settingsStr = ""
-            for subItem in sorted(item[1].items()):
-                settingStr = subItem[0]
-                settingsStr += " " + settingStr
-            optionsWithSettingsStr += \
-                optionsWithSettingsTemplate.format(**locals())
+            option_str = item[0].replace(r'$', r'\$')
+            gathered_options_str += os.linesep
+            gathered_options_str += f"                '{option_str}'"
+            settings_str = ""
+            for sub_item in sorted(item[1].items()):
+                setting_str = sub_item[0]
+                settings_str += " " + setting_str
+            options_with_settings_str += \
+                options_with_settings_template.format(**locals())
 
-    fileContents = fileContentsTemplate.format(**locals())
+    file_contents = file_contents_template.format(**locals())
 
     # Add convenient debug command that references in-development code
     if logging.getLevelName(logging.root.level) == "DEBUG":
-        fileContents += "complete -F _optionset debug_os"
+        file_contents += "complete -F _optionset debug_os"
 
-    with open(bashCompPath, 'w', encoding='UTF-8') as file:
-        logging.info(f"Writing Bash completion settings to {bashCompPath}")
-        file.writelines(fileContents)
+    with open(bashcomp_path, 'w', encoding='UTF-8') as file:
+        logging.info(f"Writing Bash completion settings to {bashcomp_path}")
+        file.writelines(file_contents)
 
 
-def _print_available(opsDb, varOpsDb, showFilesDb, globPat='*'):
+def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*'):
     """Print available options and options for use; optionally sort with unix
     expression. """
-    bodyMsg = ""
-    for db in (opsDb, varOpsDb):
+    body_msg = ""
+    for db in (ops_db, var_ops_db):
         logging.info(pformat(db, indent=1))
         for item in sorted(db.items()):
-            if not fnmatch(item[0], globPat):
+            if not fnmatch(item[0], glob_pat):
                 continue
-            optionStr = item[0]
-            bodyMsg += os.linesep + f"  {optionStr}"
-            for subItem in sorted(item[1].items()):
-                settingStr = subItem[0]
-                if subItem[1] is True:
-                    leftStr, rightStr = '>', '<'
-                elif subItem[1] is False:
-                    leftStr, rightStr = ' ', ' '
-                elif subItem[1] is None:
-                    leftStr, rightStr = ' ', ' '
-                elif subItem[1] is not None:
-                    leftStr, rightStr = subItem[1], subItem[1]
+            option_str = item[0]
+            body_msg += os.linesep + f"  {option_str}"
+            for sub_item in sorted(item[1].items()):
+                setting_str = sub_item[0]
+                if sub_item[1] is True:
+                    left_str, right_str = '>', '<'
+                elif sub_item[1] is False:
+                    left_str, right_str = ' ', ' '
+                elif sub_item[1] is None:
+                    left_str, right_str = ' ', ' '
+                elif sub_item[1] is not None:
+                    left_str, right_str = sub_item[1], sub_item[1]
                 else:
-                    leftStr, rightStr = '?', '?'
-                bodyMsg += os.linesep + f"\t{leftStr} {settingStr} {rightStr}"
-            if showFilesDb is not None:
-                if showFilesDb[optionStr]:
-                    filesStr = ' '.join(showFilesDb[optionStr].keys())
-                    bodyMsg += os.linesep + "  " + filesStr + os.linesep
-                    bodyMsg += "-"*60
+                    left_str, right_str = '?', '?'
+                body_msg += os.linesep
+                body_msg += f"\t{left_str} {setting_str} {right_str}"
+            if show_files_db is not None:
+                if show_files_db[option_str]:
+                    files_str = ' '.join(show_files_db[option_str].keys())
+                    body_msg += os.linesep + "  " + files_str + os.linesep
+                    body_msg += "-"*60
 
-    subHdrMsg = r"('  inactive  ', '> active <', '? both ?', '= variable =')"
-    if bodyMsg == "":
-        hdrMsg = "No available options and settings matching '{globPat}'"
+    sub_hdr_msg = r"('  inactive  ', '> active <', '? both ?', '= variable =')"
+    if body_msg == "":
+        hdr_msg = f"No available options and settings matching '{glob_pat}'"
     else:
-        hdrMsg = "Showing available options and settings matching '{globPat}'"
-        hdrMsg += os.linesep + subHdrMsg
-    fullMsg = hdrMsg.format(globPat=globPat) + bodyMsg
-    _print_and_log(fullMsg)
+        hdr_msg = ("Showing available options and settings matching "
+                   f"'{glob_pat}'")
+        hdr_msg += os.linesep + sub_hdr_msg
+    full_msg = hdr_msg + body_msg
+    _print_and_log(full_msg)
 
 
-def _add_left_right_groups(inLineRe):
+def _add_left_right_groups(inline_re):
     r"""Add left and right groups to regex.
     For example: \( (.*) 0 0 \) becomes (\( )(.*)( 0 0 \)) """
     # Must add one to get rid of preceding character match
-    leftParenInd = re.search(r'[^\\]([\(])', inLineRe).start() + 1
-    rightParenInd = re.search(r'[^\\]([\)])', inLineRe).start() + 1
-    left = inLineRe[:leftParenInd]
-    mid = inLineRe[leftParenInd:rightParenInd + 1]
-    right = inLineRe[rightParenInd + 1:]
-    newInLineRe = f"({left}){mid}({right})"
-    return newInLineRe
+    left_paren_ind = re.search(r'[^\\]([\(])', inline_re).start() + 1
+    right_paren_ind = re.search(r'[^\\]([\)])', inline_re).start() + 1
+    left = inline_re[:left_paren_ind]
+    mid = inline_re[left_paren_ind:right_paren_ind + 1]
+    right = inline_re[right_paren_ind + 1:]
+    new_inline_re = f"({left}){mid}({right})"
+    return new_inline_re
 
 
-@_log_before_after_commenting
-def _set_var_option(line, comInd, lineNum, strToReplace, setting,
-                    nestedComInds, nonCom, wholeCom):
+@_log_before_after_commenting  # requires line, line_num as first args
+def _set_var_option(line, line_num, com_ind, str_to_replace, setting,
+                    nested_com_inds, non_com, whole_com):
     """Return line with new variable option set. """
     # Add 2 new groups, one for the left side and the other for the right
-    inLineRe = _strip_setting_regex(setting)
-    logging.info(f"Setting variable option:{inLineRe}:{strToReplace}")
-    newInLineRe = _add_left_right_groups(inLineRe)
+    inline_re = _strip_setting_regex(setting)
+    logging.info(f"Setting variable option:{inline_re}:{str_to_replace}")
+    new_inline_re = _add_left_right_groups(inline_re)
 
-    def replace_F(m):
-        return m.group(1) + strToReplace + m.group(3)
-    newNonCom = re.sub(newInLineRe, replace_F, nonCom)
-    newLine = nestedComInds + newNonCom + comInd + wholeCom
-    return newLine
+    def surround_var_str(re_match):
+        """Surround variable option string with proper text. """
+        return re_match.group(1) + str_to_replace + re_match.group(3)
+    new_non_com = re.sub(new_inline_re, surround_var_str, non_com)
+    newline = nested_com_inds + new_non_com + com_ind + whole_com
+    return newline
 
 
-def _skip_file_warning(fileName, reason):
+def _skip_file_warning(filename, reason):
     """Log a warning that the current file is being skipped. """
-    logging.warning(f"Skipping: {fileName}")
+    logging.warning(f"Skipping: {filename}")
     logging.warning(f"Reason: {reason}")
 
 
@@ -486,249 +500,254 @@ def _yield_utf8(file):
         _skip_file_warning(file.name, err)
 
 
-def _line_count(fileName, lineLimit):
+def _line_count(filename, line_limit):
     """Return number of lines in a file unless file exceeds line limit. """
-    lineCount = 0
-    with open(fileName, 'r', encoding='UTF-8') as file:
-        for line in _yield_utf8(file):
-            lineCount += 1
-            if lineCount > lineLimit:
-                return lineCount + 1  # return line limit +1
-    return lineCount
+    linecount = 0
+    with open(filename, 'r', encoding='UTF-8') as file:
+        for _ in _yield_utf8(file):
+            linecount += 1
+            if linecount > line_limit:
+                return linecount + 1  # return line limit +1
+    return linecount
 
 
-def _get_comment_indicator(fileName):
-    """Get comment indicator from fileName ('#', '%', '!', '//', or '--'). """
-    with open(fileName, 'r', encoding='UTF-8') as file:
-        commdLineRe = re.compile(rf'^\s*({ANY_COMMENT_IND}).*')
+def _get_comment_indicator(filename):
+    """Get comment indicator from filename ('#', '%', '!', '//', or '--'). """
+    with open(filename, 'r', encoding='UTF-8') as file:
+        commd_line_re = re.compile(rf'^\s*({ANY_COMMENT_IND}).*')
         for line in _yield_utf8(file):
-            searchCommdLine = commdLineRe.search(line)
-            if searchCommdLine:
-                return searchCommdLine.group(1)
+            search_commd_line = commd_line_re.search(line)
+            if search_commd_line:
+                return search_commd_line.group(1)
 
         logging.debug('Comment not found at start of line. Searching in-line.')
-        unCommdLineRe = re.compile(UNCOMMENTED_LINE.format(**GENERIC_RE_VARS))
+        uncommd_line_re = re.compile(UNCOMMD_LINE.format(**GENERIC_RE_VARS))
         file.seek(0)  # restart file
         for line in _yield_utf8(file):
-            searchUnCommdLine = unCommdLineRe.search(line)
-            if searchUnCommdLine:
-                return searchUnCommdLine.group('comInd')
+            search_uncommd_line = uncommd_line_re.search(line)
+            if search_uncommd_line:
+                return search_uncommd_line.group('com_ind')
+
+    return None
 
 
-def _check_varop_groups(reStr):
+def _check_varop_groups(re_str):
     """Calculate the number of regex groups designated by (). """
-    allGroups = re.findall(r'([^\\]\(.*?[^\\]\))', reStr)
-    if allGroups:
-        if len(allGroups) > 1:
+    all_groups = re.findall(r'([^\\]\(.*?[^\\]\))', re_str)
+    if all_groups:
+        if len(all_groups) > 1:
             _print_and_log(INVALID_REGEX_GROUP_MSG.format(
-                specificProblem='More than one regex group \'()\' found'))
+                specific_problem='More than one regex group \'()\' found'))
             raise AttributeError
-        else:
-            pass
     else:
         _print_and_log(INVALID_REGEX_GROUP_MSG.format(
-            specificProblem='No regex groups found.\r\n'))
+            specific_problem='No regex groups found.\r\n'))
         raise AttributeError
 
 
-def _strip_setting_regex(settingStr):
+def _strip_setting_regex(setting_str):
     """Return in-line regular expression using setting."""
-    return settingStr[2:-1]  # remove surrounding =''
+    return setting_str[2:-1]  # remove surrounding =''
 
 
-def _parse_inline_regex(nonCommentedText, setting, varErrMsg=""):
+def _parse_inline_regex(non_commented_text, setting, var_err_msg=""):
     """Parse variable option value using user-defined regular expression
     stored in 'setting'.
     """
     # Attribute handles regex fail. Index handles .group() fail
-    with _handle_errors(errTypes=(AttributeError, IndexError, re.error),
-                        msg=varErrMsg):
-        inLineRe = _strip_setting_regex(setting)
-        _check_varop_groups(inLineRe)
-        strToReplace = re.search(inLineRe, nonCommentedText).group(1)
-    return strToReplace
+    with _handle_errors(err_types=(AttributeError, IndexError, re.error),
+                        msg=var_err_msg):
+        inline_re = _strip_setting_regex(setting)
+        _check_varop_groups(inline_re)
+        str_to_replace = re.search(inline_re, non_commented_text).group(1)
+    return str_to_replace
 
 
-def _process_line(line, lineNum, fDb, optionsSettingsDb, varOptionsValuesDb,
-                  showFilesDb):
+def _process_line(line, line_num, fdb, options_settings_db,
+                  var_options_values_db, show_files_db):
     """Apply logic and process options/settings in a single line of the current
     file.  This is the heart of the code.
 
     Terminology is explained by referring to the following example lines,
 
     // somefile.txt start of file
-    Some code here. // some comment here @optionA settingA
-    //Some            // nestedLvl is 0 here *@optionA settingB
-    //other           // nestedLvl is 1 here
-    //code            // nestedLvl is 1 here @optionB settingA
-    //here.           // nestedLvl is 0 here *@optionA settingB
-    Final code.     // nestedLvl is 0 here @optionB settingB
+    Some code here. // some comment here @option_a setting_a
+    //Some            // nested_lvl is 0 here *@option_a setting_b
+    //other           // nested_lvl is 1 here
+    //code            // nested_lvl is 1 here @option_b setting_a
+    //here.           // nested_lvl is 0 here *@option_a setting_b
+    Final code.     // nested_lvl is 0 here @option_b setting_b
     End of file.
 
-    comInd:     '//' is extracted comment indicator; this denotes a comment
-    option:     '@optionA' and '@optionB' are extracted options
-    tag:        '@' is the extracted tag for '@optionA' and '@optionB'
-    rawOpt:     'optionA' and 'optionB' are the extracted raw options
-    setting:    'settingA' and 'settingB' are extracted settings
+    com_ind:     '//' is extracted comment indicator; this denotes a comment
+    option:     '@option_a' and '@option_b' are extracted options
+    tag:        '@' is the extracted tag for '@option_a' and '@option_b'
+    raw_opt:     'option_a' and 'option_b' are the extracted raw options
+    setting:    'setting_a' and 'setting_b' are extracted settings
     mtag:       '*' is the multi-tag, which indicates a multi-line option, in
-                this case for '@optionA settingB'
-    nestedLvl:  '0' is starting level; when a multi-line option is found, the
-                nestedLvl is increased by 1. '@optionB' is a nested option
-                because it lies within the multi-line '@optionA settingB'
+                this case for '@option_a setting_b'
+    nested_lvl:  '0' is starting level; when a multi-line option is found, the
+                nested_lvl is increased by 1. '@option_b' is a nested option
+                because it lies within the multi-line '@option_a setting_b'
     (in)active: An option-setting combination on an uncommented line is active.
                 Nested options also account for the nested level. In the above
-                example, '@optionA settingA' and '@optionB settingB' are
-                active, while '@optionA settingB' and '@optionB settingB' are
-                inactive.
+                example, '@option_a setting_a' and '@option_b setting_b' are
+                active, while '@option_a setting_b' and '@option_b setting_b'
+                are inactive.
     """
-    newLine = line
-    inp = fDb.inputDb
-    varErrMsg = INVALID_VAR_REGEX_MSG.format(fileName=fDb.filePath,
-                                             lineNum=lineNum, line=line)
+    newline = line
+    inp = fdb.input_db
+    var_err_msg = INVALID_VAR_REGEX_MSG.format(filename=fdb.filepath,
+                                               line_num=line_num, line=line)
 
     # Adjust nested level
-    fDb.nestedLvl += fDb.nestedIncrement
-    fDb.nestedIncrement = 0  # reset
-    fDb.reVars['nestedComInds'] = rf"\s*{fDb.comInd}" * fDb.nestedLvl
+    fdb.nested_lvl += fdb.nested_increment
+    fdb.nested_increment = 0  # reset
+    fdb.re_vars['nested_com_inds'] = rf"\s*{fdb.com_ind}" * fdb.nested_lvl
 
     # Identify components of line based on regular expressions
-    commdLineRe = re.compile(COMMENTED_LINE.format(**fDb.reVars))
-    unCommdLineRe = re.compile(UNCOMMENTED_LINE.format(**fDb.reVars))
-    tagOptionSettingRe = re.compile(ONLY_OPTION_SETTING.format(**fDb.reVars))
-    commdLineMatch = commdLineRe.search(line)
-    unCommdLineMatch = unCommdLineRe.search(line)
-    if commdLineMatch:  # must search for commented before uncommented
-        nestedComInds, nonCom, wholeCom =\
-                commdLineMatch.group('nestedComInds', 'nonCom', 'wholeCom')
-    elif unCommdLineMatch:
-        nestedComInds, nonCom, wholeCom =\
-                unCommdLineMatch.group('nestedComInds', 'nonCom', 'wholeCom')
+    commd_line_re = re.compile(COMMD_LINE.format(**fdb.re_vars))
+    uncommd_line_re = re.compile(UNCOMMD_LINE.format(**fdb.re_vars))
+    tag_optn_setting_re = re.compile(ONLY_OPTN_SETTING.format(**fdb.re_vars))
+    commd_line_match = commd_line_re.search(line)
+    uncommd_line_match = uncommd_line_re.search(line)
+    if commd_line_match:  # must search for commented before uncommented
+        nested_com_inds, non_com, whole_com =\
+                commd_line_match.group('nested_com_inds', 'non_com',
+                                       'whole_com')
+    elif uncommd_line_match:
+        nested_com_inds, non_com, whole_com =\
+                uncommd_line_match.group('nested_com_inds', 'non_com',
+                                         'whole_com')
     else:
-        nestedComInds, nonCom, wholeCom = "", "", ""
-    F_commented = bool(commdLineMatch)
-    tagOptionSettingMatches = tagOptionSettingRe.findall(wholeCom)
+        nested_com_inds, non_com, whole_com = "", "", ""
+    f_comment = bool(commd_line_match)
+    tag_optn_setting_matches = tag_optn_setting_re.findall(whole_com)
 
-    logging.debug(f"LINE[{lineNum}](L{fDb.nestedLvl:1},"
-                  f"{str(fDb.F_multiLineActive)[0]})"
-                  f"({fDb.comInd},{str(F_commented)[0]}):{line[:-1]}")
+    logging.debug(f"LINE[{line_num}](L{fdb.nested_lvl:1},"
+                  f"{str(fdb.f_multiline_active)[0]})"
+                  f"({fdb.com_ind},{str(f_comment)[0]}):{line[:-1]}")
 
     # Parse commented part of line; determine inline matches
-    inlineOptionCount = defaultdict(lambda: 0)
-    inlineOptionMatch = defaultdict(lambda: False)
-    inlineSettingMatch = defaultdict(lambda: False)
-    F_inlineOptionMatch = False
-    for mtag, tag, rawOpt, setting in tagOptionSettingMatches:
+    inline_optn_count = defaultdict(lambda: 0)
+    inline_optn_match = defaultdict(lambda: False)
+    inline_setting_match = defaultdict(lambda: False)
+    f_inline_optn_match = False
+    for mtag, tag, raw_opt, setting in tag_optn_setting_matches:
         # Build database of related file locations
-        if inp.F_showfiles:
-            showFilesDb[tag+rawOpt][str(fDb.filePath)] = True
-        # Count occurances of rawOpt
-        inlineOptionCount[tag+rawOpt] += 1
-        if (inp.tag+inp.rawOpt).replace('\\', '') == tag+rawOpt:
-            inlineOptionMatch[tag+rawOpt] = True
-            F_inlineOptionMatch = True
+        if inp.f_showfiles:
+            show_files_db[tag+raw_opt][str(fdb.filepath)] = True
+        # Count occurances of raw_opt
+        inline_optn_count[tag+raw_opt] += 1
+        if (inp.tag+inp.raw_opt).replace('\\', '') == tag+raw_opt:
+            inline_optn_match[tag+raw_opt] = True
+            f_inline_optn_match = True
             if inp.setting.replace('\\', '') == setting:
-                inlineSettingMatch[tag+rawOpt] = True
+                inline_setting_match[tag+raw_opt] = True
 
     # Multi-line option logic:
     # Toggle (comment or uncomment) line if multi-line option is active
-    if fDb.F_multiLineActive and not F_inlineOptionMatch:
-        if fDb.F_multiCommented:
-            newLine = _uncomment(line, fDb.comInd, lineNum)
+    if fdb.f_multiline_active and not f_inline_optn_match:
+        if fdb.f_multicommd:
+            newline = _uncomment(line, line_num, fdb.com_ind)
         else:
-            newLine = _comment(line, fDb.comInd, lineNum)
-        F_freezeChanges = True
+            newline = _comment(line, line_num, fdb.com_ind)
+        f_freeze_changes = True
     else:
-        F_freezeChanges = False
+        f_freeze_changes = False
 
     # All other required logic based on matches in line
-    for mtag, tag, rawOpt, setting in tagOptionSettingMatches:
-        logging.debug(f"\tMATCH(freeze={str(F_freezeChanges)[0]}):"
-                      f"{mtag}{tag}{rawOpt} {setting}")
+    for mtag, tag, raw_opt, setting in tag_optn_setting_matches:
+        logging.debug(f"\tMATCH(freeze={str(f_freeze_changes)[0]}):"
+                      f"{mtag}{tag}{raw_opt} {setting}")
         # Skip rest of logic if change-freeze is set
-        if F_freezeChanges:
+        if f_freeze_changes:
             continue
 
         # Logic for determining levels for nested options
         if mtag:  # multitag present in line
-            if F_commented:
-                fDb.nestedOptionDb[fDb.nestedLvl] = tag+rawOpt
-                fDb.nestedIncrement = 1
+            if f_comment:
+                fdb.nested_option_db[fdb.nested_lvl] = tag+raw_opt
+                fdb.nested_increment = 1
             else:  # uncommented
-                logging.debug(fDb.nestedOptionDb)
-                if len(fDb.nestedOptionDb) < 1:
+                logging.debug(fdb.nested_option_db)
+                if len(fdb.nested_option_db) < 1:
                     pass
-                elif fDb.nestedOptionDb[fDb.nestedLvl-1] == tag+rawOpt:
+                elif fdb.nested_option_db[fdb.nested_lvl-1] == tag+raw_opt:
                     logging.debug("nested uncommented match")
-                    fDb.nestedOptionDb.pop(fDb.nestedLvl-1)
-                    fDb.nestedIncrement = -1
-                    F_commented = True
-                    fDb.F_multiLineActive = False
-                    F_freezeChanges = True
-                    if inlineSettingMatch[tag+rawOpt]:  # match input setting
-                        newLine = _uncomment(line, fDb.comInd, lineNum)
+                    fdb.nested_option_db.pop(fdb.nested_lvl-1)
+                    fdb.nested_increment = -1
+                    f_comment = True
+                    fdb.f_multiline_active = False
+                    f_freeze_changes = True
+                    if inline_setting_match[tag+raw_opt]:
+                        # Uncomment if match input setting
+                        newline = _uncomment(line, line_num, fdb.com_ind)
                     continue
         else:  # no multitag present
             pass
 
         # Build database of available options and settings
-        if inp.F_available or inp.F_bashComp:
+        if inp.f_available or inp.f_bashcomp:
             # Determine active, inactive, and simultaneous options
-            if re.search(ANY_VAR_SETTING, setting) and not F_commented:
-                strToReplace = _parse_inline_regex(nonCom, setting, varErrMsg)
-                varOptionsValuesDb[tag+rawOpt][strToReplace] = '='
-            elif optionsSettingsDb[tag+rawOpt][setting] is None:
-                if inlineOptionCount[tag+rawOpt] > 1:
-                    optionsSettingsDb[tag+rawOpt][setting] = None
+            if re.search(ANY_VAR_SETTING, setting) and not f_comment:
+                str_to_replace = _parse_inline_regex(non_com, setting,
+                                                     var_err_msg)
+                var_options_values_db[tag+raw_opt][str_to_replace] = '='
+            elif options_settings_db[tag+raw_opt][setting] is None:
+                if inline_optn_count[tag+raw_opt] > 1:
+                    options_settings_db[tag+raw_opt][setting] = None
                 else:
-                    optionsSettingsDb[tag+rawOpt][setting] = (not F_commented)
-            elif optionsSettingsDb[tag+rawOpt][setting] != (not F_commented):
-                optionsSettingsDb[tag+rawOpt][setting] = '?'  # ambiguous
+                    options_settings_db[tag+raw_opt][setting] = (not f_comment)
+            elif options_settings_db[tag+raw_opt][setting] != (not f_comment):
+                options_settings_db[tag+raw_opt][setting] = '?'  # ambiguous
             else:
                 pass
 
         # Modify line based on user input and regular expression matches
-        if not inp.F_available:
-            # Match input option (tag+rawOpt)
-            if ((inp.tag+inp.rawOpt).replace('\\', '') == tag+rawOpt):
-                if F_commented:  # commented line
-                    if (inp.setting == setting):  # match input setting
-                        # Uncomment lines with input tag+rawOpt and setting
-                        newLine = _uncomment(line, fDb.comInd, lineNum)
-                        if mtag and not fDb.F_multiLineActive:
-                            fDb.F_multiLineActive = True
-                            fDb.F_multiCommented = F_commented
-                        elif mtag and fDb.F_multiLineActive:
-                            fDb.F_multiLineActive = False
-                            fDb.F_multiCommented = None
+        if not inp.f_available:
+            # Match input option (tag+raw_opt)
+            if (inp.tag+inp.raw_opt).replace('\\', '') == tag+raw_opt:
+                if f_comment:  # commented line
+                    if inp.setting == setting:  # match input setting
+                        # Uncomment lines with input tag+raw_opt and setting
+                        newline = _uncomment(line, line_num, fdb.com_ind)
+                        if mtag and not fdb.f_multiline_active:
+                            fdb.f_multiline_active = True
+                            fdb.f_multicommd = f_comment
+                        elif mtag and fdb.f_multiline_active:
+                            fdb.f_multiline_active = False
+                            fdb.f_multicommd = None
                     else:  # setting does not match
                         pass
                 else:  # uncommented line
                     # If variable option, use input regex to modify line
                     if re.search(ANY_VAR_SETTING, setting):
-                        strToReplace = _parse_inline_regex(nonCom, setting,
-                                                           varErrMsg)
-                        replaceStr = inp.setting
-                        if replaceStr == strToReplace:
-                            logging.info(f"Option already set: {replaceStr}")
+                        str_to_replace = _parse_inline_regex(non_com, setting,
+                                                             var_err_msg)
+                        replace_str = inp.setting
+                        if replace_str == str_to_replace:
+                            logging.info(f"Option already set: {replace_str}")
                         else:
-                            with _handle_errors(errTypes=AttributeError,
-                                                msg=varErrMsg):
-                                newLine = _set_var_option(
-                                    line, fDb.comInd, lineNum, replaceStr,
-                                    setting, nestedComInds, nonCom, wholeCom)
-                                F_freezeChanges = True
+                            with _handle_errors(err_types=AttributeError,
+                                                msg=var_err_msg):
+                                newline = _set_var_option(
+                                    line, line_num, fdb.com_ind, replace_str,
+                                    setting, nested_com_inds, non_com,
+                                    whole_com)
+                                f_freeze_changes = True
                     # Not 1 match in line
-                    elif (inlineOptionMatch[tag+rawOpt]) and\
-                            (not inlineSettingMatch[tag+rawOpt]):
-                        newLine = _comment(line, fDb.comInd, lineNum)
-                        if mtag and not fDb.F_multiLineActive:
-                            fDb.F_multiLineActive = True
-                            fDb.F_multiCommented = F_commented
-                            F_freezeChanges = True
-                        elif mtag and fDb.F_multiLineActive:
-                            fDb.F_multiLineActive = False
-                            fDb.F_multiCommented = None
-                            F_freezeChanges = True
+                    elif (inline_optn_match[tag+raw_opt]) and\
+                            (not inline_setting_match[tag+raw_opt]):
+                        newline = _comment(line, line_num, fdb.com_ind)
+                        if mtag and not fdb.f_multiline_active:
+                            fdb.f_multiline_active = True
+                            fdb.f_multicommd = f_comment
+                            f_freeze_changes = True
+                        elif mtag and fdb.f_multiline_active:
+                            fdb.f_multiline_active = False
+                            fdb.f_multicommd = None
+                            f_freeze_changes = True
                         else:
                             pass
                     else:
@@ -738,115 +757,114 @@ def _process_line(line, lineNum, fDb, optionsSettingsDb, varOptionsValuesDb,
         else:
             pass
 
-    if not newLine == line:  # if 1 line in file is change, file is modified
-        fDb.F_fileModified = True
+    if not newline == line:  # if 1 line in file is change, file is modified
+        fdb.f_filemodified = True
 
-    return newLine
+    return newline
 
 
-def _process_file(filePath, inputDb, optionsSettingsDb, varOptionsValuesDb,
-                  showFilesDb):
+def _process_file(filepath, input_db, options_settings_db,
+                  var_options_values_db, show_files_db):
     """Process individual file.
-    Update optionsSettingsDb and varOptionsValuesDb
+    Update options_settings_db and var_options_values_db
     Return if changes have been made or not
 
     General algorithm is to scroll through file line by line, applying
     consistent logic to make build database of available options or to make the
     desired changes.
     """
-    logging.debug(f"FILE CANDIDATE: {filePath}")
+    logging.debug(f"FILE CANDIDATE: {filepath}")
 
     # Check file size and line count of file
-    lineCount = _line_count(filePath, lineLimit=inputDb.maxFileLines)
-    fsizeKb = filePath.stat().st_size/1000
-    if fsizeKb > inputDb.maxFileSizeKb:
-        reasonStr = f"File exceeds kB size limit of {inputDb.maxFileSizeKb}"
-        _skip_file_warning(filePath,
-                           reason=reasonStr)
+    linecount = _line_count(filepath, line_limit=input_db.max_flines)
+    fsize_kb = filepath.stat().st_size/1000
+    if fsize_kb > input_db.max_fsize_kb:
+        reason_str = f"File exceeds kB size limit of {input_db.max_fsize_kb}"
+        _skip_file_warning(filepath, reason=reason_str)
         return False
-    elif lineCount > inputDb.maxFileLines:
-        reasonStr = f"File exceeds line limit of {inputDb.maxFileLines}"
-        _skip_file_warning(filePath,
-                           reason=reasonStr)
+
+    if linecount > input_db.max_flines:
+        reason_str = f"File exceeds line limit of {input_db.max_flines}"
+        _skip_file_warning(filepath,
+                           reason=reason_str)
         return False
 
     # Instantiate and initialize file variables
-    fDb = FileVarsDatabase(filePath, inputDb)
+    fdb = FileVarsDatabase(filepath, input_db)
 
     # Only continue if a comment index is found in the file
-    if not fDb.comInd:
+    if not fdb.com_ind:
         return False
-    logging.debug(f"FILE MATCHED [{fDb.comInd}]: {filePath}")
+    logging.debug(f"FILE MATCHED [{fdb.com_ind}]: {filepath}")
 
     # Read file and parse options in comments
-    with open(filePath, 'r', encoding='UTF-8') as file:
-        newLines = ['']*lineCount
+    with open(filepath, 'r', encoding='UTF-8') as file:
+        newlines = ['']*linecount
         for idx, line in enumerate(_yield_utf8(file)):
-            lineNum = idx + 1
-            newLines[idx] = _process_line(line, lineNum, fDb,
-                                          optionsSettingsDb,
-                                          varOptionsValuesDb, showFilesDb)
+            line_num = idx + 1
+            newlines[idx] = _process_line(line, line_num, fdb,
+                                          options_settings_db,
+                                          var_options_values_db, show_files_db)
 
     # Write file
-    if fDb.F_fileModified:
-        with open(filePath, 'w', encoding='UTF-8') as file:
-            file.writelines(newLines)
+    if fdb.f_filemodified:
+        with open(filepath, 'w', encoding='UTF-8') as file:
+            file.writelines(newlines)
         _print_and_log(f"File modified: {file.name}")
         return True
-    else:
-        return False
+
+    return False
 
 
-def _scroll_through_files(validFiles, inputDb):
+def _scroll_through_files(valid_files, input_db):
     """Scroll through files, line by line. This function:
     * This is heart of the code. """
-    inp = inputDb
-    optionsSettingsDb = defaultdict(lambda: defaultdict(lambda: None))
-    varOptionsValuesDb = defaultdict(lambda: defaultdict(lambda: None))
-    if inp.F_showfiles:
-        showFilesDb = defaultdict(lambda: defaultdict(lambda: None))
+    inp = input_db
+    options_settings_db = defaultdict(lambda: defaultdict(lambda: None))
+    var_options_values_db = defaultdict(lambda: defaultdict(lambda: None))
+    if inp.f_showfiles:
+        show_files_db = defaultdict(lambda: defaultdict(lambda: None))
     else:
-        showFilesDb = None
-    F_changesMade = False
+        show_files_db = None
+    f_changes_made = False
 
-    if inp.F_available:
+    if inp.f_available:
         logging.info("Scrolling through files to gather available options")
     else:
-        logging.info(("Scrolling through files to set: {inp.tag}{inp.rawOpt} "
-                      "{inp.setting}").format(inp=inputDb))
+        logging.info(("Scrolling through files to set: {inp.tag}{inp.raw_opt} "
+                      "{inp.setting}").format(inp=input_db))
 
-    for filePath in validFiles:
-        F_fileChanged = _process_file(filePath, inputDb, optionsSettingsDb,
-                                      varOptionsValuesDb, showFilesDb)
-        if F_fileChanged:
-            F_changesMade = True
+    for filepath in valid_files:
+        f_file_changed = _process_file(filepath, input_db, options_settings_db,
+                                       var_options_values_db, show_files_db)
+        if f_file_changed:
+            f_changes_made = True
 
     # Cut out options with a singular setting. Could try filter() here
-    optionsSettingsDb = {
-        tg: n for tg, n in optionsSettingsDb.items() if len(n) > 1}
+    options_settings_db = {
+        tg: n for tg, n in options_settings_db.items() if len(n) > 1}
 
-    return optionsSettingsDb, varOptionsValuesDb, showFilesDb, F_changesMade
+    return (options_settings_db, var_options_values_db, show_files_db,
+            f_changes_made)
 
 
-def _fn_compare(globSet, compareArray):
+def _fn_compare(glob_set, compare_array):
     """Compare set with unix * expressions with array of files or directories.
     """
-    for g in globSet:
-        for c in compareArray:
-            if fnmatch(c, g):
+    for glob_ in glob_set:
+        for cmpr in compare_array:
+            if fnmatch(cmpr, glob_):
                 return True
-    else:  # no break
-        return False
+    return False
 
 
-def _gen_valid_files(ignoreFiles, ignoreDirs):
+def _gen_valid_files(ignore_files, ignore_dirs):
     """Generator to get non-ignored files in non-ignored directories. """
-    for dirPath, _, files in os.walk('.', followlinks=True):
-        if not _fn_compare(ignoreDirs, dirPath.split(os.sep)):
+    for dirpath, _, files in os.walk('.', followlinks=True):
+        if not _fn_compare(ignore_dirs, dirpath.split(os.sep)):
             for file in files:
-                if not _fn_compare(ignoreFiles, (file,)):
-                    #print("DEBUG NOT IGNORED:", file)
-                    yield Path(f"{dirPath}/{file}")
+                if not _fn_compare(ignore_files, (file,)):
+                    yield Path(f"{dirpath}/{file}")
 
 
 def _str_dict(dict_):
@@ -855,111 +873,112 @@ def _str_dict(dict_):
     return {k: str(v).lstrip('[').rstrip(']') for k, v in dict_.items()}
 
 
-def _array_from_str(arrayStr):
+def _array_from_str(array_str):
     """Return an array from a string of an array. """
     return [a.replace("'", '').replace('"', '').strip()
-            for a in arrayStr.split(',')]
+            for a in array_str.split(',')]
 
 
 def _load_program_settings(args):
     """Load program settings if file provided by user, else use default. """
-    configFile = Path(args.auxDir) / f"{BASENAME_NO_EXT}.cfg"
-    config = {'ignoreDirs': IGNORE_DIRS,
-              'ignoreFiles': IGNORE_FILES,
-              'maxFileLines': MAX_FLINES,
-              'maxFileSizeKb': MAX_FSIZE_KB, }
+    config_file = Path(args.aux_dir) / f"{BASENAME_NO_EXT}.cfg"
+    config = DEFAULT_CONFIG
     cfg = ConfigParser()
     cfg.optionxform = str  # maintain case even on Windows
     section = 'Files'
-    if Path.exists(configFile):
-        logging.info(f"Reading program settings from {configFile}:")
-        cfg.read(configFile)
-        config['maxFileLines'] = int(cfg[section].get('maxFileLines'))
-        config['maxFileSizeKb'] = int(cfg[section].get('maxFileSizeKb'))
-        config['ignoreDirs'] = _array_from_str(
-                cfg[section].get('ignoreDirs'))
-        config['ignoreFiles'] = _array_from_str(
-                cfg[section].get('ignoreFiles'))
+
+    if Path.exists(config_file):
+        logging.info(f"Reading program settings from {config_file}:")
+        cfg.read(config_file)
+        config['max_flines'] = int(cfg[section].get('max_flines'))
+        config['max_fsize_kb'] = int(cfg[section].get('max_fsize_kb'))
+        config['ignore_dirs'] = _array_from_str(
+            cfg[section].get('ignore_dirs'))
+        config['ignore_files'] = _array_from_str(
+            cfg[section].get('ignore_files'))
     else:
-        if args.bashCompletion or not args.noLog:  # only write when allowed to
-            logging.info("Using default program settings:")
+        logging.info("Using default program configuration settings:")
+        if args.bashcomp or not args.no_log:  # only write when allowed to
+            _print_and_log(("Writing default program configuration settings "
+                            f"to {config_file}"))
             cfg[section] = _str_dict(config)
-            #_write_config_file(configFile, config)
-            with open(configFile, 'w') as file:
+            with open(config_file, 'w') as file:
                 cfg.write(file)
+
     logging.info(config)
-        
+
     return config
 
 
 def _parse_and_check_input(args, config):
     """Parse input arguments. """
-    InputDb = namedtuple('InputDb', ['tag', 'rawOpt', 'setting',
-                                         'F_available', 'F_bashComp',
-                                         'F_showfiles', 'maxFileLines',
-                                         'maxFileSizeKb', ])
+    input_db = namedtuple('input_db',
+                          ['tag', 'raw_opt', 'setting', 'f_available',
+                           'f_bashcomp', 'f_showfiles', 'max_flines',
+                           'max_fsize_kb', ])
 
-    if args.setting == '' or args.showFiles:
+    if args.setting == '' or args.show_files:
         args.available = True
 
     if args.available:
-        return InputDb(tag=ANY_TAG, rawOpt=ANY_RAW_OPTION,
-                         setting=args.setting, F_available=args.available,
-                         F_bashComp=args.bashCompletion,
-                         F_showfiles=args.showFiles,
-                         maxFileLines=config['maxFileLines'],
-                         maxFileSizeKb=config['maxFileSizeKb'])
-    else:
-        # Check if setting is formatted correctly
-        with _handle_errors(errTypes=AttributeError,
-                            msg=INVALID_SETTING_MSG):
-            setting = re.search(f"(^{VALID_INPUT_SETTING}$)",
-                                args.setting).group(0)
-        # Check if option is formatted correctly
-        checkTagOptionRe = re.compile(
-                "^({mtag}*)({tag}+)({rawOpt})$".format(**GENERIC_RE_VARS))
-        with _handle_errors(errTypes=(AttributeError),
-                            msg=INVALID_OPTION_MSG):
-            mtag, tag, rawOpt = checkTagOptionRe.search(args.option).groups()
-        literalTag = ''.join([rf'\{s}' for s in tag])  # read as literal
-        return InputDb(tag=literalTag, rawOpt=rawOpt, setting=setting,
-                         F_available=args.available,
-                         F_bashComp=args.bashCompletion, F_showfiles=False,
-                         maxFileLines=config['maxFileLines'],
-                         maxFileSizeKb=config['maxFileSizeKb'])
+        return input_db(tag=ANY_TAG, raw_opt=ANY_RAW_OPTION,
+                        setting=args.setting, f_available=args.available,
+                        f_bashcomp=args.bashcomp,
+                        f_showfiles=args.show_files,
+                        max_flines=config['max_flines'],
+                        max_fsize_kb=config['max_fsize_kb'])
+
+    # Check if setting is formatted correctly
+    with _handle_errors(err_types=AttributeError,
+                        msg=INVALID_SETTING_MSG):
+        setting = re.search(f"(^{VALID_INPUT_SETTING}$)",
+                            args.setting).group(0)
+    # Check if option is formatted correctly
+    check_tag_option_re = re.compile(
+        "^({mtag}*)({tag}+)({raw_opt})$".format(**GENERIC_RE_VARS))
+    with _handle_errors(err_types=(AttributeError), msg=INVALID_OPTION_MSG):
+        _, tag, raw_opt = check_tag_option_re.search(args.option).groups()
+    literal_tag = ''.join([rf'\{s}' for s in tag])  # read as literal
+    return input_db(tag=literal_tag, raw_opt=raw_opt, setting=setting,
+                    f_available=args.available,
+                    f_bashcomp=args.bashcomp, f_showfiles=False,
+                    max_flines=config['max_flines'],
+                    max_fsize_kb=config['max_fsize_kb'])
 
 
-def optionset(argsArr):
+def optionset(args_arr):
     """Main optionset function. Input array of string arguments. """
-    startTime = time()  # time program
+    start_time = time()  # time program
 
     # Parse arguments
-    args = parser.parse_args(argsArr)
-    if args.helpFull:
+    args = parser.parse_args(args_arr)
+
+    if args.help_full:
         parser.description = FULL_HELP_DESCRIPTION
         parser.print_help()
         return True
-    elif args.version:
+
+    if args.version:
         print(f"{BASENAME} {__version__}")
         return True
 
-
-    global F_QUIET, F_VERBOSE
-    F_QUIET = args.quiet
-    F_VERBOSE = args.verbose
+    # Reset global variables based on user input
+    global g_f_quiet, g_f_verbose
+    g_f_quiet = args.quiet
+    g_f_verbose = args.verbose if not g_f_quiet else False
 
     # Set up logging
-    args.auxDir = Path(args.auxDir)
-    logLevel = 'DEBUG' if args.debug else 'INFO'
-    if args.noLog:
-        logPath = Path(os.devnull)
+    args.aux_dir = Path(args.aux_dir)
+    log_lvl = 'DEBUG' if args.debug else 'INFO'
+    if args.no_log:
+        log_path = Path(os.devnull)
     else:
-        args.auxDir.mkdir(parents=True, exist_ok=True)
-        logPath = args.auxDir / LOG_NAME
-        if Path.exists(logPath):  # use unlink(missing_ok=True) if Python 3.8
-            logPath.unlink()
-    logFormat = "%(levelname)s:%(message)s"
-    logging.basicConfig(filename=logPath, level=logLevel, format=logFormat)
+        args.aux_dir.mkdir(parents=True, exist_ok=True)
+        log_path = args.aux_dir / LOG_NAME
+        if Path.exists(log_path):  # use unlink(missing_ok=True) if Python 3.8
+            log_path.unlink()
+    log_format = "%(levelname)s:%(message)s"
+    logging.basicConfig(filename=log_path, level=log_lvl, format=log_format)
 
     # Run algorithm
     logging.info("Executing main optionset function")
@@ -967,43 +986,48 @@ def optionset(argsArr):
     logging.info("Checking input options")
     logging.debug(f"args = {args}")
     config = _load_program_settings(args)
-    inputDb = _parse_and_check_input(args, config)
-    logging.info(f"<tag><rawOpt> <setting> = "
-                 f"{inputDb.tag}{inputDb.rawOpt} {inputDb.setting}")
+    input_db = _parse_and_check_input(args, config)
+    logging.info(f"<tag><raw_opt> <setting> = "
+                 f"{input_db.tag}{input_db.raw_opt} {input_db.setting}")
 
     logging.info("Generating valid files")
-    validFiles = list(_gen_valid_files(config['ignoreFiles'],
-                                       config['ignoreDirs']))
-    logging.info(f"Valid files: {[str(vf) for vf in validFiles]}")
+    valid_files = list(_gen_valid_files(config['ignore_files'],
+                                        config['ignore_dirs']))
+    logging.info(f"Valid files: {[str(vf) for vf in valid_files]}")
 
-    optionsSettingsDb, varOptionsValuesDb, showFilesDb, F_changesMade = \
-        _scroll_through_files(validFiles, inputDb=inputDb)
+    options_settings_db, var_options_values_db, show_files_db, f_changes_made \
+        = _scroll_through_files(valid_files, input_db=input_db)
 
     if args.available:
-        globPat = '*' if args.option is None else f"{args.option}*"
-        _print_available(optionsSettingsDb, varOptionsValuesDb, showFilesDb,
-                         globPat)
+        glob_pat = '*' if args.option is None else f"{args.option}*"
+        _print_available(options_settings_db, var_options_values_db,
+                         show_files_db, glob_pat)
 
-    if args.bashCompletion:
-        _write_bash_completion_file(optionsSettingsDb, varOptionsValuesDb,
-                                   bashCompPath=args.auxDir/BASHCOMP_NAME)
+    if args.bashcomp:
+        _write_bashcompletion_file(options_settings_db, var_options_values_db,
+                                   bashcomp_path=args.aux_dir/BASHCOMP_NAME)
 
-    if F_changesMade and F_VERBOSE:
-        _print_and_log(f"See all modifications in {logPath}")
+    if f_changes_made and g_f_verbose:
+        _print_and_log(f"See all modifications in {log_path}")
 
-    logging.info(f"Finished in {(time()-startTime):1.5f} s")
+    total_prog_time = time() - start_time
+    total_prog_time_msg = f"Finished in {total_prog_time:1.5f} s"
+    if total_prog_time > 1.0:  # print time when large
+        _print_and_log(total_prog_time_msg)
+    else:
+        logging.info(total_prog_time_msg)
 
     return True
 
 
 def main():
     """Main function. """
-    argsArr = argv[1:] if len(argv) > 1 else [""]
-    optionset(argsArr)
+    args_arr = argv[1:] if len(argv) > 1 else [""]
+    optionset(args_arr)
 
 
 # ############################################################ #
-# Run main optionset function
+# Run main function
 # ############################################################ #
 if __name__ == '__main__':
     main()
