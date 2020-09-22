@@ -16,18 +16,17 @@ from optionset import __version__, __author__
 scriptList = ["optionset/optionset.py", ]
 
 if __name__ == "__main__":
-    with open("README.md", "r") as fh:
-        longDescription = fh.read()
+    with open("README.rst", "r") as fh:
+        long_description = fh.read()
 
     setup(
         name='optionset',
-        version=__version__,
         packages=['optionset', ],
-        description="Enable/disable user-predefined options in text-based "
-        "dictionaries",
-        long_description=longDescription,
-        long_description_content_type="text/markdown",
-        url=None,
+        version=__version__,
+        description=("A lightweight tool for conducting parameter studies."),
+        long_description=long_description,
+        long_description_content_type="text/x-rst",
+        url="https://github.com/DrHobo/optionset",
         author=__author__,
         author_email="matt.c.jones.aoe@gmail.com",
         scripts=scriptList,
@@ -46,13 +45,10 @@ if __name__ == "__main__":
             "Topic :: Software Development :: Pre-processors",
             "Topic :: Text Processing",
             "Topic :: Utilities",
-            "Programming Language :: Python :: 3.4",
-            "Programming Language :: Python :: 3.5",
-            "Programming Language :: Python :: 3.6",
             "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
         ],
-        keywords='utility tool',
+        keywords=['utility', 'macro-processor'],
         install_requires=None,
     )

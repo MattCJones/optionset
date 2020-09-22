@@ -30,7 +30,7 @@ from sys import argv, exit
 from time import time
 
 __author__ = "Matthew C. Jones"
-__version__ = "20.09"
+__version__ = "20.09.22"
 
 __all__ = (
         "optionset",
@@ -45,7 +45,7 @@ __all__ = (
 BASENAME = Path(__file__).name
 BASHCOMP_CMD = 'os'  # bash-completion run command
 BASENAME_NO_EXT = Path(__file__).stem
-RUNCMD = BASHCOMP_CMD if '--bash-ompletion' in argv else BASENAME
+RUNCMD = BASHCOMP_CMD if '--bash-completion' in argv else BASENAME
 AUX_DIR = Path("~/.optionset").expanduser()
 LOG_NAME = f"log.{BASENAME}"
 BASHCOMP_NAME = "bash_completion"
@@ -53,74 +53,87 @@ CONFIG_NAME = f"{BASENAME_NO_EXT}.cfg"
 BASH_FUNC_STR = f"""function {BASHCOMP_CMD} {{
     {BASENAME} "$@" --bash-completion;
     source {AUX_DIR/BASHCOMP_NAME};
-    }}"""
+}}"""
 SHORT_DESCRIPTION = f"""
-This program enables and disables user-predefined options in text-based code
-and dictionary files in the base directory and below.  The user specifies the
-lines in the files that will either be enabled or disabled by adding macro
-commands as commented text.
+Optionset allows users to succinctly set up and conduct parameter studies for
+applications that reference text-based dictionary files. The program enables
+and disables user-predefined options in text-based dictionary files in the base
+directory and below.  The user specifies the lines in the files that will
+either be enabled or disabled by adding macro commands as commented text.
 """
 SHORT_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
 Run '{RUNCMD} --help-full' to view more-detailed help"""
 FULL_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
-For example, the OpenFOAM dictionary text file 'system/controlDict' could be
-written as,
+For example, suppose a parameter study involved varying fluid properties and
+the kinematic viscosity was listed in a dictionary file as,
 
-application pimpleFoam // @simulation transient
-//application simpleFoam // @simulation steady
+nu = 1.5e-5; // air [m^2/s]
+//nu = 1e-6; // water [m^2/s]
 
-This setup allows the user to easily switch between transient and steady
-simulations without manually editting the file.  Simply run,
+In the above text, the property of air will be read, since the line with water
+is commented out.  To enable water instead, the user could simply switch which
+lines are commented.  However, this task is often inconvenient, especially with
+many properties listed across multiple files.  Alternatively, the following
+macros can be added to the comments to mark them as a parameters to be varied.
 
-{RUNCMD} @simulation steady
+nu = 1.5e-5; // air [m^2/s] ~nu air
+//nu = 1e-6; // water [m^2/s] ~nu water
+
+This setup allows the user to easily switch between air and water simulations
+without manually editing the dictionary file.  On the command line, simply run,
+
+{RUNCMD} ~nu water
 
 and the dictionary file will be modified and re-written as,
 
-//application pimpleFoam // @simulation transient
-application simpleFoam // @simulation steady
+//nu = 1.5e-5; // air [m^2/s] ~nu air
+nu = 1e-6; // water [m^2/s] ~nu water
 
-where the steady solver 'simpleFoam' is now uncommented and active. Here
-'@simulation' is the 'option' while 'transient' and 'steady' are the
-'settings'.  An unlimited number of unique options and settings are allowed.
-Each can only be composed of alphanumerical words with dots, pluses, minuses,
-and underscores. Note that the first one or more characters in a option must be
-a special symbol (non-bracket, non-comment-indicator, non-option/setting) such
-as '~@$^&=|?'.
+so that water is now the active property. Within the prescribed macros,
+`~nu` is the 'option' while `air` and `water` are the 'settings'.  An unlimited
+number of unique options and settings are allowed.  Each can only be composed
+of alphanumerical words with dots, pluses, minuses, and underscores, and
+the first 1+ characters in the option must be a symbol such as `~@$^&=|?`.
 
-Use '{RUNCMD} -a ' to view all of the options that you have set, or even
-'{RUNCMD} -a @simple' to view all options that begin with '@simple'.
+Use `{RUNCMD} -a` to view all of the options that you have set, or even
+`{RUNCMD} -a ~nu` to view all options that begin with `~nu`.  Additionally,
+`{RUNCMD} -a -f` will show all options and their associated files.
 
-To avoid comment clutter, multi-line options are encouraged by writing '*' in
+To avoid comment clutter, multi-line options are encouraged by writing `*` in
 front of the first and last options in a series (see text on left),
 
-functions        // *@forces on    | <---  |   functions        // @forces on
-{{                                  |INSTEAD|   {{                // @forces on
-#include "forces"                  |  OF   |   #include "forces"// @forces on
-}}                // *@forces on    | --->  |   }}                // @forces on
-//               // @forces off    |       |   //               // @forces off
+functions        // *~forces on    | <---  |   functions        // ~forces on
+{{                                  |INSTEAD|   {{                // ~forces on
+#include "forces"                  |  OF   |   #include "forces"// ~forces on
+}}                // *~forces on    | --->  |   }}                // ~forces on
+//               // ~forces off    |       |   //               // ~forces off
 
-An additional feature is a variable option.  For variable options the
-dictionary text file must be formatted with a Perl-styled regular expression
-='<regex>' that matches the desired text to be changed such as,
+An additional feature is the variable option.  For variable options the
+macro command must be formatted with a Perl-styled regular expression
+`='<regex>'` that matches the desired text to be changed such as,
 
-variable option = 5.5; // @varOption ='= (.*);'
+variable_option = -5.5; // ~varOption ='= (.*);'
 
-To change the variable option to 6.7 use, '{RUNCMD} @varOption 6.7', and the
-file becomes,
+To change the `variable_option` to '6.7' use, `{RUNCMD} ~varOption 6.7`,
+and the line within the file becomes,
 
-variable option = 6.7; // @varOption ='= (.*);'
+variable_option = 6.7; // ~varOption ='= (.*);'
 
-To enable Bash tab completion add the following lines to '~/.bashrc',
+To enable Bash tab completion add the following lines to your `~/.bashrc`,
 
 {BASH_FUNC_STR}
 
-and run the program using '{BASHCOMP_CMD}' instead of '{BASENAME}'.
+and run the program using `{BASHCOMP_CMD}` instead of `{BASENAME}`.
 
 Using your favorite scripting language, it is convenient to glue this program
 into more advanced option variation routines to create parameter sweeps and
-case studies.  Note that it is possible to directly import this funtionality
-into a Python script using 'from optionset import optionset' and feeding an
-array of command line arguments to the optionset() function.
+case studies.  While this program is generally called from the command line, it
+is also possible to directly import this functionality into a Python script:
+
+from optionset import optionset
+optionset(['~nu', 'water'])  # set kinematic viscosity to that of water
+
+For command line usage, the following arguments are permitted.
 """
 
 # Default configuration
@@ -219,7 +232,7 @@ parser.add_argument(
               "allows for unix-style glob-expression searching; "
               "'-a' is implicitely enabled when no 'setting' is input"))
 parser.add_argument(
-        '-f', '--show-files', dest='show_files', default=False,
+        '-f', '--show-files', dest='showfiles', default=False,
         action='store_true',
         help=f"show files associate with available options")
 parser.add_argument(
@@ -412,7 +425,8 @@ complete -F _optionset {bashcomp_cmd_b}"""
         file.writelines(file_contents)
 
 
-def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*'):
+def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
+                     f_available=True):
     """Print available options and options for use; optionally sort with unix
     expression. """
     body_msg = ""
@@ -423,20 +437,21 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*'):
                 continue
             option_str = item[0]
             body_msg += os.linesep + f"  {option_str}"
-            for sub_item in sorted(item[1].items()):
-                setting_str = sub_item[0]
-                if sub_item[1] is True:
-                    left_str, right_str = '>', '<'
-                elif sub_item[1] is False:
-                    left_str, right_str = ' ', ' '
-                elif sub_item[1] is None:
-                    left_str, right_str = ' ', ' '
-                elif sub_item[1] is not None:
-                    left_str, right_str = sub_item[1], sub_item[1]
-                else:
-                    left_str, right_str = '?', '?'
-                body_msg += os.linesep
-                body_msg += f"\t{left_str} {setting_str} {right_str}"
+            if f_available:
+                for sub_item in sorted(item[1].items()):
+                    setting_str = sub_item[0]
+                    if sub_item[1] is True:
+                        left_str, right_str = '>', '<'
+                    elif sub_item[1] is False:
+                        left_str, right_str = ' ', ' '
+                    elif sub_item[1] is None:
+                        left_str, right_str = ' ', ' '
+                    elif sub_item[1] is not None:
+                        left_str, right_str = sub_item[1], sub_item[1]
+                    else:
+                        left_str, right_str = '?', '?'
+                    body_msg += os.linesep
+                    body_msg += f"\t{left_str} {setting_str} {right_str}"
             if show_files_db is not None:
                 if show_files_db[option_str]:
                     files_str = ' '.join(show_files_db[option_str].keys())
@@ -687,7 +702,7 @@ def _process_line(line, line_num, fdb, options_settings_db,
             pass
 
         # Build database of available options and settings
-        if inp.f_available or inp.f_bashcomp:
+        if inp.f_available or inp.f_showfiles or inp.f_bashcomp:
             # Determine active, inactive, and simultaneous options
             if re.search(ANY_VAR_SETTING, setting) and not f_comment:
                 str_to_replace = _parse_inline_regex(non_com, setting,
@@ -704,7 +719,7 @@ def _process_line(line, line_num, fdb, options_settings_db,
                 pass
 
         # Modify line based on user input and regular expression matches
-        if not inp.f_available:
+        if not (inp.f_available or inp.f_showfiles):
             # Match input option (tag+raw_opt)
             if (inp.tag+inp.raw_opt).replace('\\', '') == tag+raw_opt:
                 if f_comment:  # commented line
@@ -827,8 +842,9 @@ def _scroll_through_files(valid_files, input_db):
         show_files_db = None
     f_changes_made = False
 
-    if inp.f_available:
-        logging.info("Scrolling through files to gather available options")
+    if inp.f_available or inp.f_showfiles:
+        logging.info(("Scrolling through files to gather available options and"
+                      " settings data"))
     else:
         logging.info(("Scrolling through files to set: {inp.tag}{inp.raw_opt} "
                       "{inp.setting}").format(inp=input_db))
@@ -911,19 +927,19 @@ def _load_program_settings(args):
 
 def _parse_and_check_input(args, config):
     """Parse input arguments. """
-    input_db = namedtuple('input_db',
+    InputDb = namedtuple('InputDb',
                           ['tag', 'raw_opt', 'setting', 'f_available',
-                           'f_bashcomp', 'f_showfiles', 'max_flines',
+                           'f_showfiles', 'f_bashcomp', 'max_flines',
                            'max_fsize_kb', ])
 
-    if args.setting == '' or args.show_files:
+    if args.setting == '' and not args.showfiles:
         args.available = True
 
-    if args.available:
-        return input_db(tag=ANY_TAG, raw_opt=ANY_RAW_OPTION,
+    if args.available or args.showfiles:
+        return InputDb(tag=ANY_TAG, raw_opt=ANY_RAW_OPTION,
                         setting=args.setting, f_available=args.available,
+                        f_showfiles=args.showfiles,
                         f_bashcomp=args.bashcomp,
-                        f_showfiles=args.show_files,
                         max_flines=config['max_flines'],
                         max_fsize_kb=config['max_fsize_kb'])
 
@@ -938,9 +954,9 @@ def _parse_and_check_input(args, config):
     with _handle_errors(err_types=(AttributeError), msg=INVALID_OPTION_MSG):
         _, tag, raw_opt = check_tag_option_re.search(args.option).groups()
     literal_tag = ''.join([rf'\{s}' for s in tag])  # read as literal
-    return input_db(tag=literal_tag, raw_opt=raw_opt, setting=setting,
-                    f_available=args.available,
-                    f_bashcomp=args.bashcomp, f_showfiles=False,
+    return InputDb(tag=literal_tag, raw_opt=raw_opt, setting=setting,
+                    f_available=False, f_showfiles=False,
+                    f_bashcomp=args.bashcomp,
                     max_flines=config['max_flines'],
                     max_fsize_kb=config['max_fsize_kb'])
 
@@ -997,10 +1013,10 @@ def optionset(args_arr):
     options_settings_db, var_options_values_db, show_files_db, f_changes_made \
         = _scroll_through_files(valid_files, input_db=input_db)
 
-    if args.available:
+    if args.available or args.showfiles:
         glob_pat = '*' if args.option is None else f"{args.option}*"
         _print_available(options_settings_db, var_options_values_db,
-                         show_files_db, glob_pat)
+                         show_files_db, glob_pat, args.available)
 
     if args.bashcomp:
         _write_bashcompletion_file(options_settings_db, var_options_values_db,

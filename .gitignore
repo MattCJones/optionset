@@ -1,3 +1,7 @@
 *.log.optionset.py
 *__pycache__
 TODO*
+build
+dist
+*.egg-info
+scripts

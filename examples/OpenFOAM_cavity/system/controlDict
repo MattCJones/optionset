@@ -16,7 +16,7 @@ FoamFile
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 //application     icoFoam; // ~solver ico
-application     icoFoam; // ~solver simple
+application     simpleFoam; // ~solver simple
 
 startFrom       startTime;
 
