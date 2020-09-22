@@ -142,8 +142,8 @@ IGNORE_DIRS = ['.[a-zA-Z0-9]*', '__pycache__', '[0-9]', '[0-9][0-9]*',
                'trash',
                ]  # UNIX-based wild cards
 IGNORE_FILES = [BASENAME, LOG_NAME, BASHCOMP_NAME, CONFIG_NAME, '.*', 'log.*',
-                '*.log', '*.py', '*.pyc', '*.gz', '*.png', '*.jpg', '*.obj',
-                '*.stl', '*.stp', '*.step',
+                '*.log', '*.pyc', '*.gz', '*.png', '*.jpg', '*.obj', '*.stl',
+                '*.stp', '*.step',
                 ]  # UNIX-based wild cards
 MAX_FLINES = 9999  # maximum lines per file
 MAX_FSIZE_KB = 10  # maximum file size, kilobytes
@@ -211,6 +211,12 @@ A regular expression 'group' is denoted by a surrounding pair of parentheses
 '()' The commented variable setting should be the only group.' Use '()' to
 surround only the variable setting group in the commented regular expression.
 '''
+INVALID_CONFIG_FILE_MSG = '''InvalidConfigFileError:
+Problem reading {none_keys}
+From {config_file}
+Remove the file or correct the errors.
+Exiting. '''
+
 # Initialize global parser
 parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, prog=RUNCMD,
@@ -465,6 +471,19 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
         hdr_msg = ("Showing available options and settings matching "
                    f"'{glob_pat}'")
         hdr_msg += os.linesep + sub_hdr_msg
+
+    # Find files common to all options
+    number_of_options = len(ops_db) + len(var_ops_db)
+    if show_files_db is not None and number_of_options > 1:
+        common_files = []
+        for files in show_files_db.values():
+            for file_ in files.keys():
+                common_files.append(file_)
+        common_files_str = "  Common files:" + os.linesep + "  "
+        for common_file in set(common_files):
+            common_files_str += str(common_file).lstrip("'").rstrip("'") + " "
+        body_msg += os.linesep + common_files_str
+
     full_msg = hdr_msg + body_msg
     _print_and_log(full_msg)
 
@@ -890,33 +909,42 @@ def _str_dict(dict_):
 
 def _array_from_str(array_str):
     """Return an array from a string of an array. """
-    return [a.replace("'", '').replace('"', '').strip()
-            for a in array_str.split(',')]
+    if isinstance(array_str, str):
+        arr = [a.replace("'", '').replace('"', '').strip()
+               for a in array_str.split(',')]
+    else:
+        arr = None
+    return arr
 
 
 def _load_program_settings(args):
     """Load program settings if file provided by user, else use default. """
     config_file = Path(args.aux_dir) / f"{BASENAME_NO_EXT}.cfg"
-    config = DEFAULT_CONFIG
+    config = DEFAULT_CONFIG.copy()
     cfg = ConfigParser()
     cfg.optionxform = str  # maintain case even on Windows
-    section = 'Files'
+    secn = 'Files'
 
     if Path.exists(config_file):
         logging.info(f"Reading program settings from {config_file}:")
         cfg.read(config_file)
-        config['max_flines'] = int(cfg[section].get('max_flines'))
-        config['max_fsize_kb'] = int(cfg[section].get('max_fsize_kb'))
-        config['ignore_dirs'] = _array_from_str(
-            cfg[section].get('ignore_dirs'))
-        config['ignore_files'] = _array_from_str(
-            cfg[section].get('ignore_files'))
+        config['max_flines'] = int(cfg[secn].get('max_flines'))
+        config['max_fsize_kb'] = int(cfg[secn].get('max_fsize_kb'))
+        config['ignore_dirs'] = _array_from_str(cfg[secn].get('ignore_dirs'))
+        config['ignore_files'] = _array_from_str(cfg[secn].get('ignore_files'))
+        none_keys = []
+        for key, val in config.items():
+            if val is None:
+                none_keys.append(key)
+        if None in config.values():
+            _print_and_log(INVALID_CONFIG_FILE_MSG.format(**locals()))
+            exit()
     else:
         logging.info("Using default program configuration settings:")
         if args.bashcomp or not args.no_log:  # only write when allowed to
             _print_and_log(("Writing default program configuration settings "
                             f"to {config_file}"))
-            cfg[section] = _str_dict(config)
+            cfg[secn] = _str_dict(config)
             with open(config_file, 'w') as file:
                 cfg.write(file)
 
@@ -928,20 +956,20 @@ def _load_program_settings(args):
 def _parse_and_check_input(args, config):
     """Parse input arguments. """
     InputDb = namedtuple('InputDb',
-                          ['tag', 'raw_opt', 'setting', 'f_available',
-                           'f_showfiles', 'f_bashcomp', 'max_flines',
-                           'max_fsize_kb', ])
+                         ['tag', 'raw_opt', 'setting', 'f_available',
+                          'f_showfiles', 'f_bashcomp', 'max_flines',
+                          'max_fsize_kb', ])
 
     if args.setting == '' and not args.showfiles:
         args.available = True
 
     if args.available or args.showfiles:
         return InputDb(tag=ANY_TAG, raw_opt=ANY_RAW_OPTION,
-                        setting=args.setting, f_available=args.available,
-                        f_showfiles=args.showfiles,
-                        f_bashcomp=args.bashcomp,
-                        max_flines=config['max_flines'],
-                        max_fsize_kb=config['max_fsize_kb'])
+                       setting=args.setting, f_available=args.available,
+                       f_showfiles=args.showfiles,
+                       f_bashcomp=args.bashcomp,
+                       max_flines=config['max_flines'],
+                       max_fsize_kb=config['max_fsize_kb'])
 
     # Check if setting is formatted correctly
     with _handle_errors(err_types=AttributeError,
@@ -955,10 +983,10 @@ def _parse_and_check_input(args, config):
         _, tag, raw_opt = check_tag_option_re.search(args.option).groups()
     literal_tag = ''.join([rf'\{s}' for s in tag])  # read as literal
     return InputDb(tag=literal_tag, raw_opt=raw_opt, setting=setting,
-                    f_available=False, f_showfiles=False,
-                    f_bashcomp=args.bashcomp,
-                    max_flines=config['max_flines'],
-                    max_fsize_kb=config['max_fsize_kb'])
+                   f_available=False, f_showfiles=False,
+                   f_bashcomp=args.bashcomp,
+                   max_flines=config['max_flines'],
+                   max_fsize_kb=config['max_fsize_kb'])
 
 
 def optionset(args_arr):
