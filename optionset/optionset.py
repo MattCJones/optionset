@@ -30,7 +30,7 @@ from sys import argv, exit
 from time import time
 
 __author__ = "Matthew C. Jones"
-__version__ = "20.09.22"
+__version__ = "20.09.23"
 
 __all__ = (
         "optionset",
@@ -50,10 +50,6 @@ AUX_DIR = Path("~/.optionset").expanduser()
 LOG_NAME = f"log.{BASENAME}"
 BASHCOMP_NAME = "bash_completion"
 CONFIG_NAME = f"{BASENAME_NO_EXT}.cfg"
-BASH_FUNC_STR = f"""function {BASHCOMP_CMD} {{
-    {BASENAME} "$@" --bash-completion;
-    source {AUX_DIR/BASHCOMP_NAME};
-}}"""
 SHORT_DESCRIPTION = f"""
 Optionset allows users to succinctly set up and conduct parameter studies for
 applications that reference text-based dictionary files. The program enables
@@ -67,27 +63,28 @@ FULL_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
 For example, suppose a parameter study involved varying fluid properties and
 the kinematic viscosity was listed in a dictionary file as,
 
-nu = 1.5e-5; // air [m^2/s]
-//nu = 1e-6; // water [m^2/s]
+    nu = 1.5e-5; // air [m^2/s]
+    //nu = 1e-6; // water [m^2/s]
 
-In the above text, the property of air will be read, since the line with water
-is commented out.  To enable water instead, the user could simply switch which
-lines are commented.  However, this task is often inconvenient, especially with
-many properties listed across multiple files.  Alternatively, the following
-macros can be added to the comments to mark them as a parameters to be varied.
+In the above text, the property of water will be ignored, since the second line
+is commented out.  To enable water instead of air, the user could simply switch
+which line is commented.  However, this task is often inconvenient, especially
+with numerous variable properties listed across multiple files.  Alternatively,
+the following macro instructions can be added to the commented part of the text
+to mark them as a parameters to be varied.
 
-nu = 1.5e-5; // air [m^2/s] ~nu air
-//nu = 1e-6; // water [m^2/s] ~nu water
+    nu = 1.5e-5; // air [m^2/s] ~nu air
+    //nu = 1e-6; // water [m^2/s] ~nu water
 
 This setup allows the user to easily switch between air and water simulations
 without manually editing the dictionary file.  On the command line, simply run,
 
-{RUNCMD} ~nu water
+    $ {RUNCMD} ~nu water
 
 and the dictionary file will be modified and re-written as,
 
-//nu = 1.5e-5; // air [m^2/s] ~nu air
-nu = 1e-6; // water [m^2/s] ~nu water
+    //nu = 1.5e-5; // air [m^2/s] ~nu air
+    nu = 1e-6; // water [m^2/s] ~nu water
 
 so that water is now the active property. Within the prescribed macros,
 `~nu` is the 'option' while `air` and `water` are the 'settings'.  An unlimited
@@ -99,39 +96,42 @@ Use `{RUNCMD} -a` to view all of the options that you have set, or even
 `{RUNCMD} -a ~nu` to view all options that begin with `~nu`.  Additionally,
 `{RUNCMD} -a -f` will show all options and their associated files.
 
-To avoid comment clutter, multi-line options are encouraged by writing `*` in
-front of the first and last options in a series (see text on left),
+To avoid comment clutter, multi-line options are encouraged by annotating `*`
+in front of the first and last options in a series (see text on left),
 
-functions        // *~forces on    | <---  |   functions        // ~forces on
-{{                                  |INSTEAD|   {{                // ~forces on
-#include "forces"                  |  OF   |   #include "forces"// ~forces on
-}}                // *~forces on    | --->  |   }}                // ~forces on
-//               // ~forces off    |       |   //               // ~forces off
+    functions        // *~forces on | <---  | functions        // ~forces on
+    {{                               |INSTEAD| {{                // ~forces on
+    #include "forces"               |  OF   | #include "forces"// ~forces on
+    }}                // *~forces on | --->  | }}                // ~forces on
+    //               // ~forces off |       | //               // ~forces off
 
-An additional feature is the variable option.  For variable options the
-macro command must be formatted with a Perl-styled regular expression
-`='<regex>'` that matches the desired text to be changed such as,
+An additional feature is the variable option.  For variable options the macro
+command must be formatted with a Perl-styled regular expression `='<regex>'`
+that matches the desired text to be changed with parentheses `()`, for example,
 
-variable_option = -5.5; // ~varOption ='= (.*);'
+    rho = 1.225; // ~varOptionRho ='rho = (.*);'
 
-To change the `variable_option` to '6.7' use, `{RUNCMD} ~varOption 6.7`,
-and the line within the file becomes,
+Here, `(.*)` matches '1.225' in `rho = 1.225;`.  To change `rho` to '1025', run
+`{RUNCMD} ~varOptionRho 1025`, and the line within the file now becomes,
 
-variable_option = 6.7; // ~varOption ='= (.*);'
+    rho = 1025; // ~varOptionRho ='rho = (.*);'
 
 To enable Bash tab completion add the following lines to your `~/.bashrc`,
 
-{BASH_FUNC_STR}
+    function {BASHCOMP_CMD} {{
+        {BASENAME} "$@" --bash-completion;
+        source {AUX_DIR/BASHCOMP_NAME};
+    }}
 
 and run the program using `{BASHCOMP_CMD}` instead of `{BASENAME}`.
 
 Using your favorite scripting language, it is convenient to glue this program
 into more advanced option variation routines to create parameter sweeps and
 case studies.  While this program is generally called from the command line, it
-is also possible to directly import this functionality into a Python script:
+is also possible to directly import this functionality into a Python script.
 
-from optionset import optionset
-optionset(['~nu', 'water'])  # set kinematic viscosity to that of water
+    from optionset import optionset
+    optionset(['~nu', 'water'])  # set kinematic viscosity to that of water
 
 For command line usage, the following arguments are permitted.
 """
