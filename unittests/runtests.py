@@ -447,6 +447,8 @@ INFO:<tag><raw_opt> <setting> = \\@none none
 INFO:Generating valid files
 INFO:Valid files: \[.*\]
 INFO:Scrolling through files to set: \\@none none
+WARNING:Skipping: runtests.py
+WARNING:Reason: File exceeds kB size limit of 10
 WARNING:Skipping: filesToTest/shouldIgnore/binaryFile.dat
 WARNING:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
 WARNING:Skipping: filesToTest/shouldIgnore/binaryFile.dat

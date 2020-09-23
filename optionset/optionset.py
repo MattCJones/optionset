@@ -524,13 +524,13 @@ def _skip_file_warning(filename, reason):
     logging.warning(f"Reason: {reason}")
 
 
-def _yield_utf8(file):
+def _yield_utf8(file_):
     """Yield file lines only if they are UTF-8 encoded (non-binary). """
     try:
-        for line in file:
+        for line in file_:
             yield line
     except UnicodeDecodeError as err:
-        _skip_file_warning(file.name, err)
+        _skip_file_warning(file_.name, err)
 
 
 def _line_count(filename, line_limit):
@@ -896,9 +896,10 @@ def _gen_valid_files(ignore_files, ignore_dirs):
     """Generator to get non-ignored files in non-ignored directories. """
     for dirpath, _, files in os.walk('.', followlinks=True):
         if not _fn_compare(ignore_dirs, dirpath.split(os.sep)):
-            for file in files:
-                if not _fn_compare(ignore_files, (file,)):
-                    yield Path(f"{dirpath}/{file}")
+            for file_ in files:
+                baseFileName = Path(file_).name
+                if not _fn_compare(ignore_files, (baseFileName,)):
+                    yield Path(f"{dirpath}/{file_}")
 
 
 def _str_dict(dict_):
