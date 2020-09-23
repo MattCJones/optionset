@@ -91,6 +91,7 @@ so that water is now the active property. Within the prescribed macros,
 number of unique options and settings are allowed.  Each can only be composed
 of alphanumerical words with dots, pluses, minuses, and underscores, and
 the first 1+ characters in the option must be a symbol such as `~@$^&=|?`.
+Recognizable comments are denoted by `//` `#` `%` `!` or `--`.
 
 Use `{RUNCMD} -a` to view all of the options that you have set, or even
 `{RUNCMD} -a ~nu` to view all options that begin with `~nu`.  Additionally,
@@ -111,12 +112,12 @@ that matches the desired text to be changed with parentheses `()`, for example,
 
     rho = 1.225; // ~varOptionRho ='rho = (.*);'
 
-Here, `(.*)` matches '1.225' in `rho = 1.225;`.  To change `rho` to '1025', run
+Here, `(.*)` matches `1.225` in `rho = 1.225;`.  To change this to `1025`, run
 `{RUNCMD} ~varOptionRho 1025`, and the line within the file now becomes,
 
     rho = 1025; // ~varOptionRho ='rho = (.*);'
 
-To enable Bash tab completion add the following lines to your `~/.bashrc`,
+To enable Bash shell tab completion, add the following to your `~/.bashrc`,
 
     function {BASHCOMP_CMD} {{
         {BASENAME} "$@" --bash-completion;
@@ -151,7 +152,7 @@ DEFAULT_CONFIG = {'ignore_dirs': IGNORE_DIRS, 'ignore_files': IGNORE_FILES,
                   'max_flines': MAX_FLINES, 'max_fsize_kb': MAX_FSIZE_KB, }
 
 # Regular expression frameworks
-ANY_COMMENT_IND = r'(?:[#%!]|//|--)'  # comment indicators: # % // -- !
+ANY_COMMENT_IND = r'(?://|[#%!]|--)'  # comment indicators: // # % ! --
 MULTI_TAG = r'[*]'  # for multi-line commenting
 ANY_WORD = r'[a-zA-Z0-9._\-\+]+'
 ANY_RAW_OPTION = ANY_WORD
@@ -703,11 +704,9 @@ def _process_line(line, line_num, fdb, options_settings_db,
                 fdb.nested_option_db[fdb.nested_lvl] = tag+raw_opt
                 fdb.nested_increment = 1
             else:  # uncommented
-                logging.debug(fdb.nested_option_db)
                 if len(fdb.nested_option_db) < 1:
                     pass
                 elif fdb.nested_option_db[fdb.nested_lvl-1] == tag+raw_opt:
-                    logging.debug("nested uncommented match")
                     fdb.nested_option_db.pop(fdb.nested_lvl-1)
                     fdb.nested_increment = -1
                     f_comment = True

@@ -71,6 +71,7 @@ so that water is now the active property. Within the prescribed macros,
 number of unique options and settings are allowed.  Each can only be composed
 of alphanumerical words with dots, pluses, minuses, and underscores, and
 the first 1+ characters in the option must be a symbol such as :code:`~@$^&=|?`.
+Recognizable comments are denoted by :code:`//` :code:`#` :code:`%` :code:`!` or :code:`--`.
 
 Use :code:`optionset.py -a` to view all of the options that you have set, or even
 :code:`optionset.py -a ~nu` to view all options that begin with :code:`~nu`.  Additionally,
@@ -85,35 +86,35 @@ a dictionary file specified a series of functions to run.
 
 .. code-block:: cpp
 
+    // // ~functions off
     functions                   // ~functions on
     {                           // ~functions on
         #include "cuttingPlane" // ~functions on
         #include "streamLines"  // ~functions on
     }                           // ~functions on
-    // // ~functions off
 
 The five repeated macros could instead be written more succinctly as,
 
 .. code-block:: cpp
 
+    // // ~functions off
     functions                   // *~functions on
     {
         #include "cuttingPlane"
         #include "streamLines"
     }                           // *~functions on
-    //   // ~functions off
 
 And running :code:`optionset.py ~functions off` would result in the following
 modifications to the file, thereby disabling the functions.
 
 .. code-block:: cpp
 
+     // ~functions off
     //functions                   // *~functions on
     //{
     //    #include "cuttingPlane"
     //    #include "streamLines"
     //}                           // *~functions on
-       // ~functions off
 
 Variable Options
 ^^^^^^^^^^^^^^^^
@@ -126,7 +127,7 @@ that matches the desired text to be changed with parentheses :code:`()`, for exa
 
     rho = 1.225; // ~varOptionRho ='rho = (.*);'
 
-Here, :code:`(.*)` matches '1.225' in :code:`rho = 1.225;`.  To change :code:`rho` to '1025', run
+Here, :code:`(.*)` matches `1.225` in :code:`rho = 1.225;`.  To change this to `1025`, run
 :code:`optionset.py ~varOptionRho 1025`, and the line within the file now becomes,
 
 .. code-block:: cpp
@@ -136,7 +137,7 @@ Here, :code:`(.*)` matches '1.225' in :code:`rho = 1.225;`.  To change :code:`rh
 Bash Tab Completion
 ^^^^^^^^^^^^^^^^^^^
 
-To enable Bash tab completion add the following lines to your :code:`~/.bashrc`,
+To enable Bash shell tab completion, add the following to your :code:`~/.bashrc`,
 
 .. code-block:: bash
 
@@ -187,6 +188,11 @@ For command line usage, the following arguments are permitted.
                         '$HOME/.optionset/bash_completion'
     --version          show version and exit
 
+To view help from the terminal, run,
+
+.. code-block:: bash
+
+    $ optionset.py -h
 
 License
 -------
