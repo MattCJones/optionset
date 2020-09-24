@@ -30,7 +30,7 @@ from sys import argv, exit
 from time import time
 
 __author__ = "Matthew C. Jones"
-__version__ = "20.09.23"
+__version__ = "20.09.24"
 
 __all__ = (
         "optionset",
@@ -86,16 +86,12 @@ and the dictionary file will be modified and re-written as,
     //nu = 1.5e-5; // air [m^2/s] ~nu air
     nu = 1e-6; // water [m^2/s] ~nu water
 
-so that water is now the active property. Within the prescribed macros,
-`~nu` is the 'option' while `air` and `water` are the 'settings'.  An unlimited
-number of unique options and settings are allowed.  Each can only be composed
-of alphanumerical words with dots, pluses, minuses, and underscores, and
-the first 1+ characters in the option must be a symbol such as `~@$^&=|?`.
-Recognizable comments are denoted by `//` `#` `%` `!` or `--`.
-
-Use `{RUNCMD} -a` to view all of the options that you have set, or even
-`{RUNCMD} -a ~nu` to view all options that begin with `~nu`.  Additionally,
-`{RUNCMD} -a -f` will show all options and their associated files.
+so that water is now the active property. Within the prescribed macros, `~nu`
+is the 'option' while `air` and `water` are the 'settings'.  An unlimited
+number of arbitrary options and settings are allowed.  Each must be composed of
+alphanumerical words with dots, pluses, minuses, and underscores, and the first
+1+ characters in the option must be a symbol such as `~@$^&=|?`. Recognizable
+comments are denoted by `//` `#` `%` `!` or `--`.
 
 To avoid comment clutter, multi-line options are encouraged by annotating `*`
 in front of the first and last options in a series (see text on left),
@@ -110,12 +106,17 @@ An additional feature is the variable option.  For variable options the macro
 command must be formatted with a Perl-styled regular expression `='<regex>'`
 that matches the desired text to be changed with parentheses `()`, for example,
 
-    rho = 1.225; // ~varOptionRho ='rho = (.*);'
+    rho = 1.225; // ~density ='rho = (.*);'
 
 Here, `(.*)` matches `1.225` in `rho = 1.225;`.  To change this to `1025`, run
-`{RUNCMD} ~varOptionRho 1025`, and the line within the file now becomes,
+`{RUNCMD} ~density 1025`, and the line within the file now becomes,
 
-    rho = 1025; // ~varOptionRho ='rho = (.*);'
+    rho = 1025; // ~density ='rho = (.*);'
+
+To view all of the available options and settings that have been prescribed,
+run `{RUNCMD} -a`.  To narrow the search to options that start with `~nu`,
+run `{RUNCMD} -a ~nu`. Additionally, `{RUNCMD} -a -f` will list all
+associated file locations.
 
 To enable Bash shell tab completion, add the following to your `~/.bashrc`,
 

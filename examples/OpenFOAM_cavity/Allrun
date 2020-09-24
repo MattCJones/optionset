@@ -54,7 +54,7 @@ request_keypress
 optionset.py -a
 request_keypress
 
-echo "To view what files these options are prescribed in run 'optionset.py -f'":
+echo "To view what files these options are prescribed in, run 'optionset.py -f'":
 request_keypress
 optionset.py -f
 request_keypress

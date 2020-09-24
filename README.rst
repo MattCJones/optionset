@@ -15,7 +15,8 @@ Matthew C. Jones <matt.c.jones.aoe@gmail.com>
 Installation
 ------------
 
-The easiest way to install Optionset is with the Python package manager :code:`pip`:
+The easiest way to install Optionset is with the Python package manager
+:code:`pip`:
 
 .. code-block:: bash
 
@@ -67,22 +68,24 @@ and the dictionary file will be modified and re-written as,
     nu = 1e-6; // water [m^2/s] ~nu water
 
 so that water is now the active property. Within the prescribed macros,
-:code:`~nu` is the 'option' while :code:`air` and :code:`water` are the 'settings'.  An unlimited
-number of unique options and settings are allowed.  Each can only be composed
-of alphanumerical words with dots, pluses, minuses, and underscores, and
-the first 1+ characters in the option must be a symbol such as :code:`~@$^&=|?`.
-Recognizable comments are denoted by :code:`//` :code:`#` :code:`%` :code:`!` or :code:`--`.
+:code:`~nu` is the 'option' while :code:`air` and :code:`water` are the
+'settings'.  An unlimited number of arbitrary options and settings are allowed.
+Each must be composed of alphanumerical words with dots, pluses, minuses, and
+underscores, and the first 1+ characters in the option must be a symbol such as
+:code:`~@$^&=|?`. Recognizable comments are denoted by :code:`//` :code:`#`
+:code:`%` :code:`!` or :code:`--`.
 
-Use :code:`optionset.py -a` to view all of the options that you have set, or even
-:code:`optionset.py -a ~nu` to view all options that begin with :code:`~nu`.  Additionally,
-:code:`optionset.py -a -f` will show all options and their associated files.
+Use :code:`optionset.py -a` to view all of the options that you have set, or
+even :code:`optionset.py -a ~nu` to view all options that begin with
+:code:`~nu`. Additionally, :code:`optionset.py -a -f` will show all options and
+their associated files.
 
 Multi-line Options
 ^^^^^^^^^^^^^^^^^^
 
-To avoid comment clutter, multi-line options are encouraged by annotating :code:`*`
-in front of the first and last options in a series.  For example, suppose
-a dictionary file specified a series of functions to run.
+To avoid comment clutter, multi-line options are encouraged by annotating
+:code:`*` in front of the first and last options in a series.  For example,
+suppose a dictionary file specified a series of functions to run.
 
 .. code-block:: cpp
 
@@ -120,24 +123,51 @@ Variable Options
 ^^^^^^^^^^^^^^^^
 
 An additional feature is the variable option.  For variable options the macro
-command must be formatted with a Perl-styled regular expression :code:`='<regex>'`
-that matches the desired text to be changed with parentheses :code:`()`, for example,
+command must be formatted with a Perl-styled regular expression
+:code:`='<regex>'` that matches the desired text to be changed with parentheses
+:code:`()`, for example,
 
 .. code-block:: cpp
 
-    rho = 1.225; // ~varOptionRho ='rho = (.*);'
+    rho = 1.225; // ~density ='rho = (.*);'
 
-Here, :code:`(.*)` matches `1.225` in :code:`rho = 1.225;`.  To change this to `1025`, run
-:code:`optionset.py ~varOptionRho 1025`, and the line within the file now becomes,
+Here, :code:`(.*)` matches `1.225` in :code:`rho = 1.225;`.  To change this to
+`1025`, run :code:`optionset.py ~density 1025`, and the line within the
+file now becomes,
 
 .. code-block:: cpp
 
-    rho = 1025; // ~varOptionRho ='rho = (.*);'
+    rho = 1025; // ~density ='rho = (.*);'
+
+Viewing Available Options and Settings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To view all of the available options and settings that have been prescribed,
+run :code:`optionset.py -a`.  To narrow the search to options that start with
+:code:`~nu`, run :code:`optionset.py -a ~nu`. Additionally, :code:`optionset.py
+-a -f` will list all associated file locations.
+
+Implementing the option/setting macros in the above examples, the following
+output is generated from running :code:`optionset.py -a`.
+
+.. code-block:: bash
+
+    Showing available options and settings matching '*'
+    ('  inactive  ', '> active <', '? both ?', '= variable =')
+      ~functions
+            > off <
+              on
+      ~nu
+              air
+            > water <
+      ~density
+            = 1025 =
 
 Bash Tab Completion
 ^^^^^^^^^^^^^^^^^^^
 
-To enable Bash shell tab completion, add the following to your :code:`~/.bashrc`,
+To enable Bash shell tab completion, add the following to your
+:code:`~/.bashrc`,
 
 .. code-block:: bash
 
@@ -202,6 +232,8 @@ Optionset is licensed under GNU GPLv3. See the LICENSE document.
 See Also
 --------
 
-* `pyexpander`_: macro-processing with Python
+* `Github`_: for latest source code, unit tests, and examples.
+* `pyexpander`_: macro-processing with Python.
 
+.. _Github: https://github.com/DrHobo/optionset
 .. _pyexpander: https://pypi.org/project/pyexpander/
