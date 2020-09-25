@@ -1,10 +1,9 @@
-# OpenFOAM Cavity Example
+# README Options Example
 
 ## Description
 
-The OpenFOAM cavity tutorial is an example of how dictionary files can be
-modified to build user-defined options and settings.
-Use,
+Options and settings listed in the base directory `README` file are shown in
+action here. Use,
 
     $ optionset.py -h
 
