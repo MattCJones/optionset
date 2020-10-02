@@ -30,7 +30,7 @@ from sys import argv, exit
 from time import time
 
 __author__ = "Matthew C. Jones"
-__version__ = "20.09.24"
+__version__ = "20.10"
 
 __all__ = (
         "optionset",
@@ -163,7 +163,8 @@ ANY_SETTING = rf'(?:{ANY_WORD}|{ANY_VAR_SETTING})'
 VALID_INPUT_SETTING = rf'(?: |{ANY_WORD})+'  # words with spaces (using '')
 BRACKETS = r'[()<>\[\]]'
 # Implicitely match tag. Do not include any of these:
-ANY_TAG = rf'(?:(?!\s|{ANY_COMMENT_IND}|{MULTI_TAG}|{ANY_WORD}|{BRACKETS}).)'
+ANY_TAG = (rf'(?:(?!\s|{ANY_COMMENT_IND}|{MULTI_TAG}|{ANY_WORD}|{BRACKETS}'
+           rf'|{ANY_QUOTE}).)')
 # Explicitely specify tag with: ANY_TAG = r'[~@$^&\=\|\?]'
 WHOLE_COMMENT = (r'(?P<com_ind>{com_ind})'
                  r'(?P<whole_com>.*\s+{mtag}*{tag}+{raw_opt}'
@@ -482,7 +483,7 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
             for file_ in files.keys():
                 common_files.append(file_)
         common_files_str = "  Common files:" + os.linesep + "  "
-        for common_file in set(common_files):
+        for common_file in sorted(set(common_files)):
             common_files_str += str(common_file).lstrip("'").rstrip("'") + " "
         body_msg += os.linesep + common_files_str
 
@@ -1056,7 +1057,7 @@ def optionset(args_arr):
 
     total_prog_time = time() - start_time
     total_prog_time_msg = f"Finished in {total_prog_time:1.5f} s"
-    if total_prog_time > 1.0:  # print time when large
+    if g_f_verbose:
         _print_and_log(total_prog_time_msg)
     else:
         logging.info(total_prog_time_msg)

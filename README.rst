@@ -232,7 +232,7 @@ Optionset is licensed under GNU GPLv3. See the LICENSE document.
 See Also
 --------
 
-* `Github`_: for latest source code, unit tests, and examples.
+* `Github repository`_: for latest source code, unit tests, and examples.
 * `pyexpander`_: macro-processing with Python.
 
 .. _Github: https://github.com/DrHobo/optionset
