@@ -30,7 +30,7 @@ from sys import argv, exit
 from time import time
 
 __author__ = "Matthew C. Jones"
-__version__ = "20.10"
+__version__ = "20.10.06"
 
 __all__ = (
         "optionset",
@@ -438,13 +438,14 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
                      f_available=True):
     """Print available options and options for use; optionally sort with unix
     expression. """
+    common_files = []
     body_msg = ""
     for db in (ops_db, var_ops_db):
         logging.info(pformat(db, indent=1))
         for item in sorted(db.items()):
-            if not fnmatch(item[0], glob_pat):
-                continue
             option_str = item[0]
+            if not fnmatch(option_str, glob_pat):
+                continue
             body_msg += os.linesep + f"  {option_str}"
             if f_available:
                 for sub_item in sorted(item[1].items()):
@@ -466,6 +467,8 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
                     files_str = ' '.join(show_files_db[option_str].keys())
                     body_msg += os.linesep + "  " + files_str + os.linesep
                     body_msg += "-"*60
+                    for file_ in show_files_db[option_str].keys():
+                        common_files.append(file_)
 
     sub_hdr_msg = r"('  inactive  ', '> active <', '? both ?', '= variable =')"
     if body_msg == "":
@@ -476,12 +479,8 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
         hdr_msg += os.linesep + sub_hdr_msg
 
     # Find files common to all options
-    number_of_options = len(ops_db) + len(var_ops_db)
+    number_of_options = len(common_files)
     if show_files_db is not None and number_of_options > 1:
-        common_files = []
-        for files in show_files_db.values():
-            for file_ in files.keys():
-                common_files.append(file_)
         common_files_str = "  Common files:" + os.linesep + "  "
         for common_file in sorted(set(common_files)):
             common_files_str += str(common_file).lstrip("'").rstrip("'") + " "

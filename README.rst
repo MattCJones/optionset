@@ -235,5 +235,5 @@ See Also
 * `Github repository`_: for latest source code, unit tests, and examples.
 * `pyexpander`_: macro-processing with Python.
 
-.. _Github: https://github.com/DrHobo/optionset
+.. _Github repository: https://github.com/DrHobo/optionset
 .. _pyexpander: https://pypi.org/project/pyexpander/
