@@ -215,6 +215,7 @@ For command line usage, the following arguments are permitted.
       -n, --no-log       do not write log file to
                           '$HOME/.optionset/log.optionset.py'
       --rename-option    rename input option in all files
+      --rename-setting   rename input setting in all files
       --bash-completion  auto-generate bash tab-completion script
                           '$HOME/.optionset/bash_completion'
       --version          show version and exit

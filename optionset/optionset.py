@@ -174,6 +174,7 @@ UNCOMMD_LINE = (r'^(?P<nested_com_inds>{nested_com_inds})'
 COMMD_LINE = (r'^(?P<nested_com_inds>{nested_com_inds})'
               r'(?P<non_com>\s*{com_ind}(?:(?!{com_ind}).)+)' + WHOLE_COMMENT)
 ONLY_OPTN_SETTING = r'({mtag}*)({tag}+)({raw_opt})\s+({setting})\s?'
+INLINE_OPTN_SETTING = r'((?:\s|{mtag}))({option})(\s+)({setting})((?:\s|$))'
 GENERIC_RE_VARS = {'com_ind': ANY_COMMENT_IND, 'mtag': MULTI_TAG,
                    'tag': ANY_TAG, 'raw_opt': ANY_RAW_OPTN,
                    'setting': ANY_SETTING, 'nested_com_inds': ''}
@@ -217,8 +218,7 @@ surround only the variable setting group in the commented regular expression.
 INVALID_CONFIG_FILE_MSG = '''InvalidConfigFileError:
 Problem reading {none_keys}
 From {config_file}
-Remove the file or correct the errors.
-Exiting. '''
+Remove the file or correct the errors.'''
 
 # Initialize global parser
 parser = argparse.ArgumentParser(
@@ -257,8 +257,11 @@ parser.add_argument(
         '-n', '--no-log', dest='no_log', default=False, action='store_true',
         help=f"do not write log file to '{AUX_DIR/LOG_NAME}'")
 parser.add_argument(
-        '--rename-option', dest='rename', metavar='', default='',
+        '--rename-option', dest='rename_optn', metavar='', default='',
         help=("rename input option in all files"))
+parser.add_argument(
+        '--rename-setting', dest='rename_setting', metavar='', default='',
+        help=("rename input setting in all files"))
 parser.add_argument(
         '--bash-completion', dest='bashcomp', default=False,
         action='store_true',
@@ -317,34 +320,41 @@ def _print_and_log(print_str):
         print(print_str)
 
 
+def _exit():
+    """Print exit message and exit program. """
+    _print_and_log("Exiting.")
+    exit()
+
+
 def _log_before_after_commenting(func):
     """Wrapper to add file modifications to the log file. """
     @wraps(func)
     def log(*args_, **kwargs):
         line_, line_num_ = args_[0], args_[1]
-        line_before_mod = '[{:>4} ]{}'.format(line_num_,
-                                              line_.rstrip('\r\n'))
-        return_str = func(*args_, **kwargs)
-        line_after_mod = '[{:>4}\']{}'.format(line_num_,
-                                              return_str.rstrip('\r\n'))
-        if g_f_verbose:
-            _print_and_log(line_before_mod)
-            _print_and_log(line_after_mod)
-        else:
-            logging.info(line_before_mod)
-            logging.info(line_after_mod)
-        return return_str
+        fmt_line_before_mod = '[{:>4} ]{}'.format(line_num_,
+                                                  line_.rstrip('\r\n'))
+        newline_ = func(*args_, **kwargs)
+        fmt_line_after_mod = '[{:>4}\']{}'.format(line_num_,
+                                                  newline_.rstrip('\r\n'))
+
+        if line_ != newline_:
+            if g_f_verbose:
+                _print_and_log(fmt_line_before_mod)
+                _print_and_log(fmt_line_after_mod)
+            else:
+                logging.info(fmt_line_before_mod)
+                logging.info(fmt_line_after_mod)
+
+        return newline_
     return log
 
 
-@_log_before_after_commenting  # requires line, line_num as first args
 def _uncomment(line, line_num, com_ind):
     """Uncomment a line. Input requires comment indicator string. """
     line = re.sub(rf'^(\s*)({com_ind})', r"\1", line)
     return line
 
 
-@_log_before_after_commenting  # requires line, line_num as first args
 def _comment(line, line_num, com_ind):
     """Comment a line. Input requires comment indicator string. """
     line = com_ind + line
@@ -359,7 +369,7 @@ def _handle_errors(err_types, msg):
     except err_types as err:
         _print_and_log(msg)
         logging.debug(err)
-        exit()
+        _exit()
 
 
 def _write_bashcompletion_file(ops_db, var_ops_db,
@@ -402,6 +412,8 @@ _optionset()
             ;;
     esac
 }}
+complete -F _optionset {base_run_cmd}
+complete -F _optionset ./{base_run_cmd}
 complete -F _optionset {bashcomp_cmd}
 complete -F _optionset {bashcomp_cmd_b}"""
     gathered_optns_str = ""
@@ -474,7 +486,7 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
                         common_files.append(file_)
 
     sub_hdr_msg = r"('  inactive  ', '> active <', '? both ?', '= variable =')"
-    if body_msg == "":
+    if not body_msg:
         hdr_msg = f"No available options and settings matching '{glob_pat}'"
     else:
         hdr_msg = ("Showing available options and settings matching "
@@ -506,7 +518,6 @@ def _add_left_right_groups(inline_re):
     return new_inline_re
 
 
-@_log_before_after_commenting  # requires line, line_num as first args
 def _set_var_optn(line, line_num, com_ind, str_to_replace, setting,
                   nested_com_inds, non_com, whole_com):
     """Return line with new variable option set. """
@@ -601,6 +612,7 @@ def _parse_inline_regex(non_commented_text, setting, var_err_msg=""):
     return str_to_replace
 
 
+@_log_before_after_commenting  # requires line, line_num as first args
 def _process_line(line, line_num, fdb, optns_settings_db,
                   var_optns_values_db, show_files_db):
     """Apply logic and process options/settings in a single line of the current
@@ -671,6 +683,7 @@ def _process_line(line, line_num, fdb, optns_settings_db,
     inline_optn_match = defaultdict(lambda: False)
     inline_setting_match = defaultdict(lambda: False)
     f_inline_optn_match = False
+    f_inline_setting_match = False
     for mtag, tag, raw_opt, setting in tag_optn_setting_matches:
         # Build database of related file locations
         if inp.f_showfiles:
@@ -682,15 +695,31 @@ def _process_line(line, line_num, fdb, optns_settings_db,
             f_inline_optn_match = True
             if inp.setting.replace('\\', '') == setting:
                 inline_setting_match[tag+raw_opt] = True
+                f_inline_setting_match = True
 
-    # If renaming an option; if option match, rename; finally return
-    if not inp.rename_str == '':
-        if f_inline_optn_match:
-            re_rename_str = rf'({inp.tag+inp.raw_opt})(\s+{ANY_SETTING}\s?)'
-            new_whole_com = re.sub(re_rename_str, rf"{inp.rename_str}\2",
+    # If renaming an option or setting
+    if inp.rename_optn or inp.rename_setting:
+        if f_inline_optn_match and inp.rename_optn:
+            re_str = INLINE_OPTN_SETTING.format(mtag=MULTI_TAG,
+                                                option=inp.tag+inp.raw_opt,
+                                                setting=ANY_SETTING)
+            new_whole_com = re.sub(re_str, rf"\1{inp.rename_optn}\3\4\5",
                                    whole_com)
             newline = nested_com_inds + non_com + fdb.com_ind + new_whole_com
             fdb.f_filemodified = True
+        else:
+            new_whole_com = whole_com
+
+        if f_inline_setting_match and inp.rename_setting:
+            optn = inp.rename_optn if inp.rename_optn else inp.tag+inp.raw_opt
+            re_str = INLINE_OPTN_SETTING.format(mtag=MULTI_TAG,
+                                                option=optn,
+                                                setting=inp.setting)
+            newer_whole_com = re.sub(re_str, rf"\1\2\3{inp.rename_setting}\5",
+                                     new_whole_com)
+            newline = nested_com_inds + non_com + fdb.com_ind + newer_whole_com
+            fdb.f_filemodified = True
+
         return newline
 
     # Multi-line option logic:
@@ -803,7 +832,7 @@ def _process_line(line, line_num, fdb, optns_settings_db,
         else:
             pass
 
-    if not newline == line:  # if 1 line in file is changed, file is modified
+    if not (newline == line):  # if 1 line in file is changed, file is modified
         fdb.f_filemodified = True
 
     return newline
@@ -952,7 +981,7 @@ def _load_program_settings(args):
                 none_keys.append(key)
         if None in config.values():
             _print_and_log(INVALID_CONFIG_FILE_MSG.format(**locals()))
-            exit()
+            _exit()
     else:
         logging.info("Using default program configuration settings:")
         if args.bashcomp or not args.no_log:  # only write when allowed to
@@ -988,45 +1017,48 @@ def _parse_and_check_input(args, config):
     """Parse input arguments. """
     InputDb = namedtuple('InputDb',
                          ['tag', 'raw_opt', 'setting', 'f_available',
-                          'f_showfiles', 'f_bashcomp', 'rename_str',
-                          'max_flines', 'max_fsize_kb', ])
+                          'f_showfiles', 'f_bashcomp', 'rename_optn',
+                          'rename_setting', 'max_flines', 'max_fsize_kb', ])
 
-    #  Check if renaming an option
-    if args.rename == '':
-        if args.setting == '' and not args.showfiles and not args.rename:
-            args.available = True
-    else:
+    # Check if renaming an option
+    if args.rename_optn or args.rename_setting:
         #  No setting, available, and showfiles arguments if renaming option
+        msg = "Must remove {argStr} argument if renaming an option or setting."
         if args.available:
-            _print_and_log("Remove 'available' argument if renaming option.")
-            exit()
+            _print_and_log(msg.format(argStr='available'))
+            _exit()
         elif args.showfiles:
-            _print_and_log("Remove 'showfiles' argument if renaming option.")
-            exit()
-        elif not args.setting == '':
-            _print_and_log("Remove 'setting' argument if renaming option.")
-            exit()
+            _print_and_log(msg.format(argStr='showfiles'))
+            _exit()
+        elif args.rename_setting and not args.setting:
+            _print_and_log("Must input a setting if renaming a setting.")
+            _exit()
+    else:
+        # If no setting is input, default to displaying available options
+        if (not args.setting and not args.showfiles):
+            args.available = True
 
+    # If displaying available options or associated file paths
     if args.available or args.showfiles:
         tag_ = ANY_TAG
         raw_opt_ = ANY_RAW_OPTN
         setting_ = args.setting
         f_available_ = args.available
         f_showfiles_ = args.showfiles
-    else:
-        if args.rename == '':
-            setting_ = _check_setting_fmt(args.setting)
-        else:
+    else:  # standard operation of setting an option
+        if args.rename_optn and not args.rename_setting:
             setting_ = ''
-            _, _ = _check_optn_fmt(args.rename)
+            _, _ = _check_optn_fmt(args.rename_optn)
 
+        setting_ = _check_setting_fmt(args.setting) if args.setting else ''
         tag_, raw_opt_ = _check_optn_fmt(args.option)
         f_available_ = False
         f_showfiles_ = False
 
     return InputDb(tag=tag_, raw_opt=raw_opt_, setting=setting_,
                    f_available=f_available_, f_showfiles=f_showfiles_,
-                   f_bashcomp=args.bashcomp, rename_str=args.rename,
+                   f_bashcomp=args.bashcomp, rename_optn=args.rename_optn,
+                   rename_setting=args.rename_setting,
                    max_flines=config['max_flines'],
                    max_fsize_kb=config['max_fsize_kb'])
 

@@ -148,7 +148,8 @@ def enable_testset_d():
                   "~@$^multipleTags a",
                   "@nestedVarOp ' -+ intermediate D 12.34e-5'",
                   "@variableOption ' -+ 12.34e-5 D'",
-                  "@rename --rename $~@tempRename",
+                  ("@rename var1 --rename-option $~@tempRename "
+                   "--rename-setting VAR1"),
                   )
     for def_option_str in opset_strs:
         _, _ = run_cmd(f"{RUN_APP} {def_option_str}")
@@ -160,7 +161,8 @@ def enable_testset_d():
                   "@overlappingMultiline b",
                   "@overlappingOptionShort none",
                   "@nestedVarOp 'D -12.34E-5'",
-                  "$~@tempRename --rename @rename",
+                  ("$~@tempRename VAR1 --rename-option @rename "
+                   "--rename-setting var1"),
                   )
     for def_option_str in opset_strs:
         _, _ = run_cmd(f"{RUN_APP} {def_option_str}")
@@ -406,8 +408,8 @@ class TestIO(unittest.TestCase):
         short_opts = "'-H' '-a' '-d' '-f' '-h' '-n' '-q' '-v'"
         long_opts = ("'--available' '--bash-completion' '--debug' '--help' "
                      "'--help-full' '--help-full' '--no-log' '--quiet' "
-                     "'--rename-option' '--show-files' '--verbose' "
-                     "'--version'")
+                     "'--rename-option' '--rename-setting' '--show-files' "
+                     "'--verbose' '--version'")
         bash_comp_re_str = rf"""#!/bin/bash
 # Auto-generated Bash completion settings for optionset.py
 # Run 'source customAuxDir/bash_completion' to enable
@@ -467,20 +469,52 @@ INFO:Finished in \d+.\d+ s"""
         self.assertTrue(test_regex(re_regression_match, log_str))
 
     ############################################################
-    # Test renaming of options
+    # Test renaming of options and settings
     ############################################################
     def test_rename(self):
-        """Test renaming of options. """
+        """Test renaming of options and settings. """
+
+        # Rename just option
         _, _ = run_cmd(f"{RUN_APP} @rename --rename-option @RENAME")
         output_str, _ = run_cmd(f"{RUN_APP} @RENAME -a")
         rename_re_str = r"@RENAME"
         re_match = re.compile(rename_re_str, re.DOTALL)
         self.assertTrue(test_regex(re_match, output_str))
-
+        # Reset
         _, _ = run_cmd(f"{RUN_APP} @RENAME --rename-option @rename")
         output_str, _ = run_cmd(f"{RUN_APP} @rename -a")
         rename_re_str = r"@rename"
-        re_match = re.compile(rename_re_str)
+        re_match = re.compile(rename_re_str, re.DOTALL)
+        self.assertTrue(test_regex(re_match, output_str))
+
+        # Rename just setting
+        _, _ = run_cmd(f"{RUN_APP} @rename var1 --rename-setting VAR1")
+        output_str, _ = run_cmd(f"{RUN_APP} @rename -a")
+        rename_re_str = r"VAR1"
+        re_match = re.compile(rename_re_str, re.DOTALL)
+        self.assertTrue(test_regex(re_match, output_str))
+        # Reset
+        _, _ = run_cmd(f"{RUN_APP} @rename VAR1 --rename-setting var1")
+        output_str, _ = run_cmd(f"{RUN_APP} @rename -a")
+        rename_re_str = r"var1"
+        re_match = re.compile(rename_re_str, re.DOTALL)
+        self.assertTrue(test_regex(re_match, output_str))
+
+        # Rename option and setting
+        cmd_str = (f"{RUN_APP} @rename var1 --rename-option @RENAME "
+                   f"--rename-setting VAR1")
+        _, _ = run_cmd(cmd_str)
+        output_str, _ = run_cmd(f"{RUN_APP} @RENAME -a")
+        rename_re_str = r"@RENAME.*VAR1"
+        re_match = re.compile(rename_re_str, re.DOTALL)
+        self.assertTrue(test_regex(re_match, output_str))
+        # Reset
+        cmd_str = (f"{RUN_APP} @RENAME VAR1 --rename-option @rename "
+                   f"--rename-setting var1")
+        _, _ = run_cmd(cmd_str)
+        output_str, _ = run_cmd(f"{RUN_APP} @rename -a")
+        rename_re_str = r"@rename.*var1"
+        re_match = re.compile(rename_re_str, re.DOTALL)
         self.assertTrue(test_regex(re_match, output_str))
 
 
