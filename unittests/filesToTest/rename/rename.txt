@@ -1,0 +1,5 @@
+# File to demonstrate renaming of options
+Do not @rename this
+@rename *@ line 1 # rename @rename var1 rename @rename @fake
+#@rename *@ line 2 # rename @rename var2 rename @rename @fake d @rename var3
+End of file

@@ -199,24 +199,25 @@ For command line usage, the following arguments are permitted.
 .. code-block:: bash
 
     positional arguments:
-    option             'option' name
-    setting            'setting' for given 'option'
+      option             'option' name
+      setting            'setting' for given 'option'
 
     optional arguments:
-    -h, --help         show this help message and exit
-    -H, --help-full    show full help message and exit
-    -a, --available    show available option-setting combinations; allows for
-                        unix-style glob-expression searching; '-a' is implicitely
-                        enabled when no 'setting' is input
-    -f, --show-files   show files associate with available options
-    -v, --verbose      turn on verbose output
-    -q, --quiet        turn off all standard output
-    -d, --debug        turn on debug output in log file
-    -n, --no-log       do not write log file to
-                        '$HOME/.optionset/log.optionset.py'
-    --bash-completion  auto-generate bash tab-completion script
-                        '$HOME/.optionset/bash_completion'
-    --version          show version and exit
+      -h, --help         show this help message and exit
+      -H, --help-full    show full help message and exit
+      -a, --available    show available option-setting combinations; allows for
+                          unix-style glob-expression searching; '-a' is implicitely
+                          enabled when no 'setting' is input
+      -f, --show-files   show files associate with available options
+      -v, --verbose      turn on verbose output
+      -q, --quiet        turn off all standard output
+      -d, --debug        turn on debug output in log file
+      -n, --no-log       do not write log file to
+                          '$HOME/.optionset/log.optionset.py'
+      --rename-option    rename input option in all files
+      --bash-completion  auto-generate bash tab-completion script
+                          '$HOME/.optionset/bash_completion'
+      --version          show version and exit
 
 To view help from the terminal, run,
 

@@ -30,7 +30,7 @@ from sys import argv, exit
 from time import time
 
 __author__ = "Matthew C. Jones"
-__version__ = "20.10.06"
+__version__ = "20.10.09"
 
 __all__ = (
         "optionset",
@@ -156,7 +156,7 @@ DEFAULT_CONFIG = {'ignore_dirs': IGNORE_DIRS, 'ignore_files': IGNORE_FILES,
 ANY_COMMENT_IND = r'(?://|[#%!]|--)'  # comment indicators: // # % ! --
 MULTI_TAG = r'[*]'  # for multi-line commenting
 ANY_WORD = r'[a-zA-Z0-9._\-\+]+'
-ANY_RAW_OPTION = ANY_WORD
+ANY_RAW_OPTN = ANY_WORD
 ANY_QUOTE = r'[\'"]'
 ANY_VAR_SETTING = rf'\={ANY_QUOTE}.+{ANY_QUOTE}'
 ANY_SETTING = rf'(?:{ANY_WORD}|{ANY_VAR_SETTING})'
@@ -175,7 +175,7 @@ COMMD_LINE = (r'^(?P<nested_com_inds>{nested_com_inds})'
               r'(?P<non_com>\s*{com_ind}(?:(?!{com_ind}).)+)' + WHOLE_COMMENT)
 ONLY_OPTN_SETTING = r'({mtag}*)({tag}+)({raw_opt})\s+({setting})\s?'
 GENERIC_RE_VARS = {'com_ind': ANY_COMMENT_IND, 'mtag': MULTI_TAG,
-                   'tag': ANY_TAG, 'raw_opt': ANY_RAW_OPTION,
+                   'tag': ANY_TAG, 'raw_opt': ANY_RAW_OPTN,
                    'setting': ANY_SETTING, 'nested_com_inds': ''}
 
 # Error messages
@@ -185,7 +185,7 @@ Incomplete input. Try:
     "{RUNCMD} -a"                    to view available options
     "{RUNCMD} -a <unix expression>"  to search options using a unix expression
     "{RUNCMD} <option> <setting>"    to set the <setting> of <option>'''
-INVALID_OPTION_MSG = f'''InputError:
+INVALID_OPTN_MSG = f'''InputError:
 Invalid option name. A preceding tag, such as '@' in '@option' is required, and
 the rest of the option must adhere to the following regular expression:
 {ANY_WORD}
@@ -257,6 +257,9 @@ parser.add_argument(
         '-n', '--no-log', dest='no_log', default=False, action='store_true',
         help=f"do not write log file to '{AUX_DIR/LOG_NAME}'")
 parser.add_argument(
+        '--rename-option', dest='rename', metavar='', default='',
+        help=("rename input option in all files"))
+parser.add_argument(
         '--bash-completion', dest='bashcomp', default=False,
         action='store_true',
         help=("auto-generate bash tab-completion script "
@@ -300,7 +303,7 @@ class FileVarsDatabase:
         self.re_vars['com_ind'] = self.com_ind  # set file-specific indicator
 
         # Prepare nested option database
-        self.nested_option_db = OrderedDict()
+        self.nested_optn_db = OrderedDict()
 
 
 # ############################################################ #
@@ -387,11 +390,11 @@ _optionset()
         1)
             COMPREPLY=($(compgen -W "
                 {default_cmd_opts_short_str}
-                {default_cmd_opts_long_str}{gathered_options_str}
+                {default_cmd_opts_long_str}{gathered_optns_str}
                 " -- ${{cur}}))
             ;;
         2)
-            case ${{prev}} in {options_with_settings_str}
+            case ${{prev}} in {optns_with_settings_str}
             esac
             ;;
         *)
@@ -401,27 +404,27 @@ _optionset()
 }}
 complete -F _optionset {bashcomp_cmd}
 complete -F _optionset {bashcomp_cmd_b}"""
-    gathered_options_str = ""
-    options_with_settings_template = """
-                {option_str})
+    gathered_optns_str = ""
+    optns_with_settings_template = """
+                {optn_str})
                     COMPREPLY=($(compgen -W "{settings_str}" -- ${{cur}}))
                     ;;"""
-    options_with_settings_str = ""
+    optns_with_settings_str = ""
     bashcomp_cmd = BASHCOMP_CMD
     bashcomp_cmd_b = BASENAME_NO_EXT
     base_run_cmd = BASENAME
 
     for db in (ops_db, var_ops_db):
         for item in sorted(db.items()):
-            option_str = item[0].replace(r'$', r'\$')
-            gathered_options_str += os.linesep
-            gathered_options_str += f"                '{option_str}'"
+            optn_str = item[0].replace(r'$', r'\$')
+            gathered_optns_str += os.linesep
+            gathered_optns_str += f"                '{optn_str}'"
             settings_str = ""
             for sub_item in sorted(item[1].items()):
                 setting_str = sub_item[0]
                 settings_str += " " + f"'{setting_str}'"
-            options_with_settings_str += \
-                options_with_settings_template.format(**locals())
+            optns_with_settings_str += \
+                optns_with_settings_template.format(**locals())
 
     file_contents = file_contents_template.format(**locals())
 
@@ -443,10 +446,10 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
     for db in (ops_db, var_ops_db):
         logging.info(pformat(db, indent=1))
         for item in sorted(db.items()):
-            option_str = item[0]
-            if not fnmatch(option_str, glob_pat):
+            optn_str = item[0]
+            if not fnmatch(optn_str, glob_pat):
                 continue
-            body_msg += os.linesep + f"  {option_str}"
+            body_msg += os.linesep + f"  {optn_str}"
             if f_available:
                 for sub_item in sorted(item[1].items()):
                     setting_str = sub_item[0]
@@ -463,11 +466,11 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
                     body_msg += os.linesep
                     body_msg += f"\t{left_str} {setting_str} {right_str}"
             if show_files_db is not None:
-                if show_files_db[option_str]:
-                    files_str = ' '.join(show_files_db[option_str].keys())
+                if show_files_db[optn_str]:
+                    files_str = ' '.join(show_files_db[optn_str].keys())
                     body_msg += os.linesep + "  " + files_str + os.linesep
                     body_msg += "-"*60
-                    for file_ in show_files_db[option_str].keys():
+                    for file_ in show_files_db[optn_str].keys():
                         common_files.append(file_)
 
     sub_hdr_msg = r"('  inactive  ', '> active <', '? both ?', '= variable =')"
@@ -479,8 +482,8 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
         hdr_msg += os.linesep + sub_hdr_msg
 
     # Find files common to all options
-    number_of_options = len(common_files)
-    if show_files_db is not None and number_of_options > 1:
+    num_optns = len(common_files)
+    if show_files_db is not None and num_optns > 1:
         common_files_str = "  Common files:" + os.linesep + "  "
         for common_file in sorted(set(common_files)):
             common_files_str += str(common_file).lstrip("'").rstrip("'") + " "
@@ -504,8 +507,8 @@ def _add_left_right_groups(inline_re):
 
 
 @_log_before_after_commenting  # requires line, line_num as first args
-def _set_var_option(line, line_num, com_ind, str_to_replace, setting,
-                    nested_com_inds, non_com, whole_com):
+def _set_var_optn(line, line_num, com_ind, str_to_replace, setting,
+                  nested_com_inds, non_com, whole_com):
     """Return line with new variable option set. """
     # Add 2 new groups, one for the left side and the other for the right
     inline_re = _strip_setting_regex(setting)
@@ -598,8 +601,8 @@ def _parse_inline_regex(non_commented_text, setting, var_err_msg=""):
     return str_to_replace
 
 
-def _process_line(line, line_num, fdb, options_settings_db,
-                  var_options_values_db, show_files_db):
+def _process_line(line, line_num, fdb, optns_settings_db,
+                  var_optns_values_db, show_files_db):
     """Apply logic and process options/settings in a single line of the current
     file.  This is the heart of the code.
 
@@ -672,13 +675,23 @@ def _process_line(line, line_num, fdb, options_settings_db,
         # Build database of related file locations
         if inp.f_showfiles:
             show_files_db[tag+raw_opt][str(fdb.filepath)] = True
-        # Count occurances of raw_opt
+        # Count occurances of option
         inline_optn_count[tag+raw_opt] += 1
         if (inp.tag+inp.raw_opt).replace('\\', '') == tag+raw_opt:
             inline_optn_match[tag+raw_opt] = True
             f_inline_optn_match = True
             if inp.setting.replace('\\', '') == setting:
                 inline_setting_match[tag+raw_opt] = True
+
+    # If renaming an option; if option match, rename; finally return
+    if not inp.rename_str == '':
+        if f_inline_optn_match:
+            re_rename_str = rf'({inp.tag+inp.raw_opt})(\s+{ANY_SETTING}\s?)'
+            new_whole_com = re.sub(re_rename_str, rf"{inp.rename_str}\2",
+                                   whole_com)
+            newline = nested_com_inds + non_com + fdb.com_ind + new_whole_com
+            fdb.f_filemodified = True
+        return newline
 
     # Multi-line option logic:
     # Toggle (comment or uncomment) line if multi-line option is active
@@ -702,13 +715,13 @@ def _process_line(line, line_num, fdb, options_settings_db,
         # Logic for determining levels for nested options
         if mtag:  # multitag present in line
             if f_comment:
-                fdb.nested_option_db[fdb.nested_lvl] = tag+raw_opt
+                fdb.nested_optn_db[fdb.nested_lvl] = tag+raw_opt
                 fdb.nested_increment = 1
             else:  # uncommented
-                if len(fdb.nested_option_db) < 1:
+                if len(fdb.nested_optn_db) < 1:
                     pass
-                elif fdb.nested_option_db[fdb.nested_lvl-1] == tag+raw_opt:
-                    fdb.nested_option_db.pop(fdb.nested_lvl-1)
+                elif fdb.nested_optn_db[fdb.nested_lvl-1] == tag+raw_opt:
+                    fdb.nested_optn_db.pop(fdb.nested_lvl-1)
                     fdb.nested_increment = -1
                     f_comment = True
                     fdb.f_multiline_active = False
@@ -726,14 +739,14 @@ def _process_line(line, line_num, fdb, options_settings_db,
             if re.search(ANY_VAR_SETTING, setting) and not f_comment:
                 str_to_replace = _parse_inline_regex(non_com, setting,
                                                      var_err_msg)
-                var_options_values_db[tag+raw_opt][str_to_replace] = '='
-            elif options_settings_db[tag+raw_opt][setting] is None:
+                var_optns_values_db[tag+raw_opt][str_to_replace] = '='
+            elif optns_settings_db[tag+raw_opt][setting] is None:
                 if inline_optn_count[tag+raw_opt] > 1:
-                    options_settings_db[tag+raw_opt][setting] = None
+                    optns_settings_db[tag+raw_opt][setting] = None
                 else:
-                    options_settings_db[tag+raw_opt][setting] = (not f_comment)
-            elif options_settings_db[tag+raw_opt][setting] != (not f_comment):
-                options_settings_db[tag+raw_opt][setting] = '?'  # ambiguous
+                    optns_settings_db[tag+raw_opt][setting] = (not f_comment)
+            elif optns_settings_db[tag+raw_opt][setting] != (not f_comment):
+                optns_settings_db[tag+raw_opt][setting] = '?'  # ambiguous
             else:
                 pass
 
@@ -764,7 +777,7 @@ def _process_line(line, line_num, fdb, options_settings_db,
                         else:
                             with _handle_errors(err_types=AttributeError,
                                                 msg=var_err_msg):
-                                newline = _set_var_option(
+                                newline = _set_var_optn(
                                     line, line_num, fdb.com_ind, replace_str,
                                     setting, nested_com_inds, non_com,
                                     whole_com)
@@ -790,16 +803,16 @@ def _process_line(line, line_num, fdb, options_settings_db,
         else:
             pass
 
-    if not newline == line:  # if 1 line in file is change, file is modified
+    if not newline == line:  # if 1 line in file is changed, file is modified
         fdb.f_filemodified = True
 
     return newline
 
 
-def _process_file(filepath, input_db, options_settings_db,
-                  var_options_values_db, show_files_db):
+def _process_file(filepath, input_db, optns_settings_db,
+                  var_optns_values_db, show_files_db):
     """Process individual file.
-    Update options_settings_db and var_options_values_db
+    Update optns_settings_db and var_optns_values_db
     Return if changes have been made or not
 
     General algorithm is to scroll through file line by line, applying
@@ -836,8 +849,8 @@ def _process_file(filepath, input_db, options_settings_db,
         for idx, line in enumerate(_yield_utf8(file)):
             line_num = idx + 1
             newlines[idx] = _process_line(line, line_num, fdb,
-                                          options_settings_db,
-                                          var_options_values_db, show_files_db)
+                                          optns_settings_db,
+                                          var_optns_values_db, show_files_db)
 
     # Write file
     if fdb.f_filemodified:
@@ -853,8 +866,8 @@ def _scroll_through_files(valid_files, input_db):
     """Scroll through files, line by line. This function:
     * This is heart of the code. """
     inp = input_db
-    options_settings_db = defaultdict(lambda: defaultdict(lambda: None))
-    var_options_values_db = defaultdict(lambda: defaultdict(lambda: None))
+    optns_settings_db = defaultdict(lambda: defaultdict(lambda: None))
+    var_optns_values_db = defaultdict(lambda: defaultdict(lambda: None))
     if inp.f_showfiles:
         show_files_db = defaultdict(lambda: defaultdict(lambda: None))
     else:
@@ -869,16 +882,16 @@ def _scroll_through_files(valid_files, input_db):
                       "{inp.setting}").format(inp=input_db))
 
     for filepath in valid_files:
-        f_file_changed = _process_file(filepath, input_db, options_settings_db,
-                                       var_options_values_db, show_files_db)
+        f_file_changed = _process_file(filepath, input_db, optns_settings_db,
+                                       var_optns_values_db, show_files_db)
         if f_file_changed:
             f_changes_made = True
 
     # Cut out options with a singular setting. Could try filter() here
-    options_settings_db = {
-        tg: n for tg, n in options_settings_db.items() if len(n) > 1}
+    optns_settings_db = {
+        tg: n for tg, n in optns_settings_db.items() if len(n) > 1}
 
-    return (options_settings_db, var_options_values_db, show_files_db,
+    return (optns_settings_db, var_optns_values_db, show_files_db,
             f_changes_made)
 
 
@@ -954,38 +967,66 @@ def _load_program_settings(args):
     return config
 
 
+def _check_setting_fmt(setting_str):
+    """Ensure proper setting format.  """
+    with _handle_errors(err_types=AttributeError, msg=INVALID_SETTING_MSG):
+        setting = re.search(f"(^{VALID_INPUT_SETTING}$)", setting_str).group(0)
+    return setting
+
+
+def _check_optn_fmt(optn_str):
+    """Ensure proper option format.  """
+    check_tag_option_re = re.compile(
+        "^({mtag}*)({tag}+)({raw_opt})$".format(**GENERIC_RE_VARS))
+    with _handle_errors(err_types=(AttributeError), msg=INVALID_OPTN_MSG):
+        _, tag, raw_opt = check_tag_option_re.search(optn_str).groups()
+    literal_tag = ''.join([rf'\{s}' for s in tag])  # read as literal
+    return literal_tag, raw_opt
+
+
 def _parse_and_check_input(args, config):
     """Parse input arguments. """
     InputDb = namedtuple('InputDb',
                          ['tag', 'raw_opt', 'setting', 'f_available',
-                          'f_showfiles', 'f_bashcomp', 'max_flines',
-                          'max_fsize_kb', ])
+                          'f_showfiles', 'f_bashcomp', 'rename_str',
+                          'max_flines', 'max_fsize_kb', ])
 
-    if args.setting == '' and not args.showfiles:
-        args.available = True
+    #  Check if renaming an option
+    if args.rename == '':
+        if args.setting == '' and not args.showfiles and not args.rename:
+            args.available = True
+    else:
+        #  No setting, available, and showfiles arguments if renaming option
+        if args.available:
+            _print_and_log("Remove 'available' argument if renaming option.")
+            exit()
+        elif args.showfiles:
+            _print_and_log("Remove 'showfiles' argument if renaming option.")
+            exit()
+        elif not args.setting == '':
+            _print_and_log("Remove 'setting' argument if renaming option.")
+            exit()
 
     if args.available or args.showfiles:
-        return InputDb(tag=ANY_TAG, raw_opt=ANY_RAW_OPTION,
-                       setting=args.setting, f_available=args.available,
-                       f_showfiles=args.showfiles,
-                       f_bashcomp=args.bashcomp,
-                       max_flines=config['max_flines'],
-                       max_fsize_kb=config['max_fsize_kb'])
+        tag_ = ANY_TAG
+        raw_opt_ = ANY_RAW_OPTN
+        setting_ = args.setting
+        f_available_ = args.available
+        f_showfiles_ = args.showfiles
+    else:
+        if args.rename == '':
+            setting_ = _check_setting_fmt(args.setting)
+        else:
+            setting_ = ''
+            _, _ = _check_optn_fmt(args.rename)
 
-    # Check if setting is formatted correctly
-    with _handle_errors(err_types=AttributeError,
-                        msg=INVALID_SETTING_MSG):
-        setting = re.search(f"(^{VALID_INPUT_SETTING}$)",
-                            args.setting).group(0)
-    # Check if option is formatted correctly
-    check_tag_option_re = re.compile(
-        "^({mtag}*)({tag}+)({raw_opt})$".format(**GENERIC_RE_VARS))
-    with _handle_errors(err_types=(AttributeError), msg=INVALID_OPTION_MSG):
-        _, tag, raw_opt = check_tag_option_re.search(args.option).groups()
-    literal_tag = ''.join([rf'\{s}' for s in tag])  # read as literal
-    return InputDb(tag=literal_tag, raw_opt=raw_opt, setting=setting,
-                   f_available=False, f_showfiles=False,
-                   f_bashcomp=args.bashcomp,
+        tag_, raw_opt_ = _check_optn_fmt(args.option)
+        f_available_ = False
+        f_showfiles_ = False
+
+    return InputDb(tag=tag_, raw_opt=raw_opt_, setting=setting_,
+                   f_available=f_available_, f_showfiles=f_showfiles_,
+                   f_bashcomp=args.bashcomp, rename_str=args.rename,
                    max_flines=config['max_flines'],
                    max_fsize_kb=config['max_fsize_kb'])
 
@@ -1039,16 +1080,16 @@ def optionset(args_arr):
                                         config['ignore_dirs']))
     logging.info(f"Valid files: {[str(vf) for vf in valid_files]}")
 
-    options_settings_db, var_options_values_db, show_files_db, f_changes_made \
+    optns_settings_db, var_optns_values_db, show_files_db, f_changes_made \
         = _scroll_through_files(valid_files, input_db=input_db)
 
     if args.available or args.showfiles:
         glob_pat = '*' if args.option is None else f"{args.option}*"
-        _print_available(options_settings_db, var_options_values_db,
+        _print_available(optns_settings_db, var_optns_values_db,
                          show_files_db, glob_pat, args.available)
 
     if args.bashcomp:
-        _write_bashcompletion_file(options_settings_db, var_options_values_db,
+        _write_bashcompletion_file(optns_settings_db, var_optns_values_db,
                                    bashcomp_path=args.aux_dir/BASHCOMP_NAME)
 
     if f_changes_made and g_f_verbose:

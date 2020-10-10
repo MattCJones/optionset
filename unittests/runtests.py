@@ -148,6 +148,7 @@ def enable_testset_d():
                   "~@$^multipleTags a",
                   "@nestedVarOp ' -+ intermediate D 12.34e-5'",
                   "@variableOption ' -+ 12.34e-5 D'",
+                  "@rename --rename $~@tempRename",
                   )
     for def_option_str in opset_strs:
         _, _ = run_cmd(f"{RUN_APP} {def_option_str}")
@@ -159,6 +160,7 @@ def enable_testset_d():
                   "@overlappingMultiline b",
                   "@overlappingOptionShort none",
                   "@nestedVarOp 'D -12.34E-5'",
+                  "$~@tempRename --rename @rename",
                   )
     for def_option_str in opset_strs:
         _, _ = run_cmd(f"{RUN_APP} {def_option_str}")
@@ -404,7 +406,8 @@ class TestIO(unittest.TestCase):
         short_opts = "'-H' '-a' '-d' '-f' '-h' '-n' '-q' '-v'"
         long_opts = ("'--available' '--bash-completion' '--debug' '--help' "
                      "'--help-full' '--help-full' '--no-log' '--quiet' "
-                     "'--show-files' '--verbose' '--version'")
+                     "'--rename-option' '--show-files' '--verbose' "
+                     "'--version'")
         bash_comp_re_str = rf"""#!/bin/bash
 # Auto-generated Bash completion settings for optionset.py
 # Run 'source customAuxDir/bash_completion' to enable
@@ -463,12 +466,29 @@ INFO:Finished in \d+.\d+ s"""
         re_regression_match = re.compile(log_re_str)
         self.assertTrue(test_regex(re_regression_match, log_str))
 
+    ############################################################
+    # Test renaming of options
+    ############################################################
+    def test_rename(self):
+        """Test renaming of options. """
+        _, _ = run_cmd(f"{RUN_APP} @rename --rename-option @RENAME")
+        output_str, _ = run_cmd(f"{RUN_APP} @RENAME -a")
+        rename_re_str = r"@RENAME"
+        re_match = re.compile(rename_re_str, re.DOTALL)
+        self.assertTrue(test_regex(re_match, output_str))
+
+        _, _ = run_cmd(f"{RUN_APP} @RENAME --rename-option @rename")
+        output_str, _ = run_cmd(f"{RUN_APP} @rename -a")
+        rename_re_str = r"@rename"
+        re_match = re.compile(rename_re_str)
+        self.assertTrue(test_regex(re_match, output_str))
+
 
 @unittest.skipIf(F_SKIP_TEST_SETS, "Skipping test sets")
 class TestSets(unittest.TestCase):
     """Run through Test Sets and verify output. """
 
-    checkDiffMsg = "Differences in files shown below:\n{diffOutput}"
+    checkDiffMsg = "Differences in files shown above."
 
     @classmethod
     def setUpClass(cls):
@@ -486,8 +506,7 @@ class TestSets(unittest.TestCase):
         enable_testset_a()
         output_str, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_A}",
                                 check=False)
-        self.assertEqual(output_str, "",
-                         msg=self.checkDiffMsg.format(diffOutput=output_str))
+        self.assertEqual(output_str, "", msg=self.checkDiffMsg)
 
     @unittest.skipIf(not os.path.exists(SOL_DIR_B), f"No dir: {SOL_DIR_B}")
     def testset_b(self):
@@ -496,8 +515,7 @@ class TestSets(unittest.TestCase):
         enable_testset_b()
         output_str, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_B}",
                                 check=False)
-        self.assertEqual(output_str, "",
-                         msg=self.checkDiffMsg.format(diffOutput=output_str))
+        self.assertEqual(output_str, "", msg=self.checkDiffMsg)
 
     @unittest.skipIf(not os.path.exists(SOL_DIR_C), f"No dir: {SOL_DIR_C}")
     def testset_c(self):
@@ -506,8 +524,7 @@ class TestSets(unittest.TestCase):
         enable_testset_c()
         output_str, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_C}",
                                 check=False)
-        self.assertEqual(output_str, "",
-                         msg=self.checkDiffMsg.format(diffOutput=output_str))
+        self.assertEqual(output_str, "", msg=self.checkDiffMsg)
 
     @unittest.skipIf(not os.path.exists(SOL_DIR_D), f"No dir: {SOL_DIR_D}")
     def testset_d(self):
@@ -516,8 +533,7 @@ class TestSets(unittest.TestCase):
         enable_testset_d()
         output_str, _ = run_cmd(f"diff -r {FILES_TO_TEST_DIR} {SOL_DIR_D}",
                                 check=False)
-        self.assertEqual(output_str, "",
-                         msg=self.checkDiffMsg.format(diffOutput=output_str))
+        self.assertEqual(output_str, "", msg=self.checkDiffMsg)
 
 
 def mkdirs(dir_str):
