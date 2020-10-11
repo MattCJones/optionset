@@ -1,0 +1,13 @@
+// Notional dictionary file that defines fluid properties and functions
+
+nu   1.5e-5; // air [m^2/s] ~nu air
+//nu   1e-6; // water [m^2/s] ~nu water
+
+rho   1.225; // ~density ='rho   (.*);'
+
+// // ~functions off
+functions                   // *~functions on
+{
+    #include "cuttingPlane"
+    #include "streamLines"
+}                           // *~functions on

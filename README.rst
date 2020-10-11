@@ -28,7 +28,7 @@ Documentation
 Basic Usage
 ^^^^^^^^^^^
 
-The program enables and disables user-predefined options in text-based
+Optionset enables and disables user-predefined options in text-based
 dictionary files in the base directory and below.  The user specifies the lines
 in the files that will either be enabled or disabled by adding macro commands
 as commented text.
@@ -38,8 +38,9 @@ the kinematic viscosity was listed in a dictionary file as,
 
 .. code-block:: cpp
 
-    nu = 1.5e-5; // air [m^2/s]
-    //nu = 1e-6; // water [m^2/s]
+    // Inside notional dictionary file
+    nu    1.5e-5; // air [m^2/s]
+    //nu    1e-6; // water [m^2/s]
 
 In the above text, the property of water will be ignored, since the second line
 is commented out.  To enable water instead of air, the user could simply switch
@@ -50,8 +51,9 @@ to mark them as a parameters to be varied.
 
 .. code-block:: cpp
 
-    nu = 1.5e-5; // air [m^2/s] ~nu air
-    //nu = 1e-6; // water [m^2/s] ~nu water
+    // Inside notional dictionary file
+    nu    1.5e-5; // air [m^2/s] ~nu air
+    //nu    1e-6; // water [m^2/s] ~nu water
 
 This setup allows the user to easily switch between air and water simulations
 without manually editing the dictionary file.  On the command line, simply run,
@@ -64,8 +66,9 @@ and the dictionary file will be modified and re-written as,
 
 .. code-block:: cpp
 
-    //nu = 1.5e-5; // air [m^2/s] ~nu air
-    nu = 1e-6; // water [m^2/s] ~nu water
+    // Inside notional dictionary file
+    //nu    1.5e-5; // air [m^2/s] ~nu air
+    nu    1e-6; // water [m^2/s] ~nu water
 
 so that water is now the active property. Within the prescribed macros,
 :code:`~nu` is the 'option' while :code:`air` and :code:`water` are the
@@ -89,6 +92,7 @@ suppose a dictionary file specified a series of functions to run.
 
 .. code-block:: cpp
 
+    // Inside notional dictionary file
     // // ~functions off
     functions                   // ~functions on
     {                           // ~functions on
@@ -100,6 +104,7 @@ The five repeated macros could instead be written more succinctly as,
 
 .. code-block:: cpp
 
+    // Inside notional dictionary file
     // // ~functions off
     functions                   // *~functions on
     {
@@ -112,6 +117,7 @@ modifications to the file, thereby disabling the functions.
 
 .. code-block:: cpp
 
+    // Inside notional dictionary file
      // ~functions off
     //functions                   // *~functions on
     //{
@@ -129,15 +135,17 @@ command must be formatted with a Perl-styled regular expression
 
 .. code-block:: cpp
 
-    rho = 1.225; // ~density ='rho = (.*);'
+    // Inside notional dictionary file
+    rho   1.225; // ~density ='rho   (.*);'
 
-Here, :code:`(.*)` matches `1.225` in :code:`rho = 1.225;`.  To change this to
+Here, :code:`(.*)` matches `1.225` in :code:`rho   1.225;`.  To change this to
 `1025`, run :code:`optionset.py ~density 1025`, and the line within the
 file now becomes,
 
 .. code-block:: cpp
 
-    rho = 1025; // ~density ='rho = (.*);'
+    // Inside notional dictionary file
+    rho   1025; // ~density ='rho   (.*);'
 
 Viewing Available Options and Settings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -171,6 +179,7 @@ To enable Bash shell tab completion, add the following to your
 
 .. code-block:: bash
 
+    # Inside ~/.bashrc
     function os {
         optionset.py "$@" --bash-completion;
         source $HOME/.optionset/bash_completion;
@@ -183,11 +192,12 @@ Scripting
 
 Using your favorite scripting language, it is convenient to glue this program
 into more advanced option variation routines to create parameter sweeps and
-case studies.  While this program is generally called from the command line, it
+case studies.  While this program is generally called as a shell command, it
 is also possible to directly import this functionality into a Python script.
 
 .. code-block:: python
 
+    # Inside notional Python script
     from optionset import optionset
     optionset(['~nu', 'water'])  # set kinematic viscosity to that of water
 

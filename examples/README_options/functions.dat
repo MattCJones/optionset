@@ -1,8 +1,0 @@
-// Dictionary that defines notational function usage
-
-// // ~functions off
-functions                   // *~functions on
-{
-    #include "cuttingPlane"
-    #include "streamLines"
-}                           // *~functions on

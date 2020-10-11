@@ -30,7 +30,7 @@ from sys import argv, exit
 from time import time
 
 __author__ = "Matthew C. Jones"
-__version__ = "20.10.09"
+__version__ = "20.10.10"
 
 __all__ = (
         "optionset",
@@ -52,7 +52,7 @@ BASHCOMP_NAME = "bash_completion"
 CONFIG_NAME = f"{BASENAME_NO_EXT}.cfg"
 SHORT_DESCRIPTION = f"""
 Optionset allows users to succinctly set up and conduct parameter studies for
-applications that reference text-based dictionary files. The program enables
+applications that reference text-based dictionary files. Optionset enables
 and disables user-predefined options in text-based dictionary files in the base
 directory and below.  The user specifies the lines in the files that will
 either be enabled or disabled by adding macro commands as commented text.
@@ -63,8 +63,8 @@ FULL_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
 For example, suppose a parameter study involved varying fluid properties and
 the kinematic viscosity was listed in a dictionary file as,
 
-    nu = 1.5e-5; // air [m^2/s]
-    //nu = 1e-6; // water [m^2/s]
+    nu   1.5e-5; // air [m^2/s]
+    //nu   1e-6; // water [m^2/s]
 
 In the above text, the property of water will be ignored, since the second line
 is commented out.  To enable water instead of air, the user could simply switch
@@ -73,8 +73,8 @@ with numerous variable properties listed across multiple files.  Alternatively,
 the following macro instructions can be added to the commented part of the text
 to mark them as a parameters to be varied.
 
-    nu = 1.5e-5; // air [m^2/s] ~nu air
-    //nu = 1e-6; // water [m^2/s] ~nu water
+    nu   1.5e-5; // air [m^2/s] ~nu air
+    //nu   1e-6; // water [m^2/s] ~nu water
 
 This setup allows the user to easily switch between air and water simulations
 without manually editing the dictionary file.  On the command line, simply run,
@@ -83,8 +83,8 @@ without manually editing the dictionary file.  On the command line, simply run,
 
 and the dictionary file will be modified and re-written as,
 
-    //nu = 1.5e-5; // air [m^2/s] ~nu air
-    nu = 1e-6; // water [m^2/s] ~nu water
+    //nu   1.5e-5; // air [m^2/s] ~nu air
+    nu   1e-6; // water [m^2/s] ~nu water
 
 so that water is now the active property. Within the prescribed macros, `~nu`
 is the 'option' while `air` and `water` are the 'settings'.  An unlimited
@@ -106,12 +106,12 @@ An additional feature is the variable option.  For variable options the macro
 command must be formatted with a Perl-styled regular expression `='<regex>'`
 that matches the desired text to be changed with parentheses `()`, for example,
 
-    rho = 1.225; // ~density ='rho = (.*);'
+    rho   1.225; // ~density ='rho   (.*);'
 
-Here, `(.*)` matches `1.225` in `rho = 1.225;`.  To change this to `1025`, run
+Here, `(.*)` matches `1.225` in `rho   1.225;`.  To change this to `1025`, run
 `{RUNCMD} ~density 1025`, and the line within the file now becomes,
 
-    rho = 1025; // ~density ='rho = (.*);'
+    rho   1025; // ~density ='rho   (.*);'
 
 To view all of the available options and settings that have been prescribed,
 run `{RUNCMD} -a`.  To narrow the search to options that start with `~nu`,
@@ -129,7 +129,7 @@ and run the program using `{BASHCOMP_CMD}` instead of `{BASENAME}`.
 
 Using your favorite scripting language, it is convenient to glue this program
 into more advanced option variation routines to create parameter sweeps and
-case studies.  While this program is generally called from the command line, it
+case studies.  While this program is generally called as a shell command, it
 is also possible to directly import this functionality into a Python script.
 
     from optionset import optionset
