@@ -26,7 +26,7 @@ if __name__ == "__main__":
         description=("A lightweight tool for conducting parameter studies."),
         long_description=long_description,
         long_description_content_type="text/x-rst",
-        url="https://github.com/DrHobo/optionset",
+        url="https://github.com/MattCJones/optionset",
         author=__author__,
         author_email="matt.c.jones.aoe@gmail.com",
         scripts=scriptList,

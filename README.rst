@@ -22,6 +22,13 @@ The easiest way to install Optionset is with the Python package manager
 
     $ pip install optionset
 
+To install as a user (no root access required), use
+
+.. code-block:: bash
+
+    $ pip install --user optionset
+
+
 Documentation
 -------------
 

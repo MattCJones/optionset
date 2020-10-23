@@ -30,7 +30,7 @@ from sys import argv, exit
 from time import time
 
 __author__ = "Matthew C. Jones"
-__version__ = "20.10.10"
+__version__ = "20.10.23"
 
 __all__ = (
         "optionset",
@@ -455,6 +455,7 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
     expression. """
     common_files = []
     body_msg = ""
+    num_optns = 0
     for db in (ops_db, var_ops_db):
         logging.info(pformat(db, indent=1))
         for item in sorted(db.items()):
@@ -462,6 +463,7 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
             if not fnmatch(optn_str, glob_pat):
                 continue
             body_msg += os.linesep + f"  {optn_str}"
+            num_optns += 1
             if f_available:
                 for sub_item in sorted(item[1].items()):
                     setting_str = sub_item[0]
@@ -494,7 +496,7 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
         hdr_msg += os.linesep + sub_hdr_msg
 
     # Find files common to all options
-    num_optns = len(common_files)
+    print("DEBUG", num_optns)
     if show_files_db is not None and num_optns > 1:
         common_files_str = "  Common files:" + os.linesep + "  "
         for common_file in sorted(set(common_files)):
