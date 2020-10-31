@@ -63,8 +63,8 @@ FULL_HELP_DESCRIPTION = f"""{SHORT_DESCRIPTION}
 For example, suppose a parameter study involved varying fluid properties and
 the kinematic viscosity was listed in a dictionary file as,
 
-    nu   1.5e-5; // air [m^2/s]
-    //nu   1e-6; // water [m^2/s]
+    nu   1.5e-5; // viscosity of air in [m^2/s]
+    //nu   1e-6; // viscosity of water in [m^2/s]
 
 In the above text, the property of water will be ignored, since the second line
 is commented out.  To enable water instead of air, the user could simply switch
@@ -73,8 +73,8 @@ with numerous variable properties listed across multiple files.  Alternatively,
 the following macro instructions can be added to the commented part of the text
 to mark them as a parameters to be varied.
 
-    nu   1.5e-5; // air [m^2/s] ~nu air
-    //nu   1e-6; // water [m^2/s] ~nu water
+    nu   1.5e-5; // viscosity of air in [m^2/s] ~nu air
+    //nu   1e-6; // viscosity of water in [m^2/s] ~nu water
 
 This setup allows the user to easily switch between air and water simulations
 without manually editing the dictionary file.  On the command line, simply run,
@@ -83,8 +83,8 @@ without manually editing the dictionary file.  On the command line, simply run,
 
 and the dictionary file will be modified and re-written as,
 
-    //nu   1.5e-5; // air [m^2/s] ~nu air
-    nu   1e-6; // water [m^2/s] ~nu water
+    //nu   1.5e-5; // viscosity of air in [m^2/s] ~nu air
+    nu   1e-6; // viscosity of water in [m^2/s] ~nu water
 
 so that water is now the active property. Within the prescribed macros, `~nu`
 is the 'option' while `air` and `water` are the 'settings'.  An unlimited

@@ -1,8 +1,10 @@
 // Notional dictionary file that defines fluid properties and functions
 
-nu   1.5e-5; // air [m^2/s] ~nu air
-//nu   1e-6; // water [m^2/s] ~nu water
+nu   1.5e-5; // viscosity of air in [m^2/s] ~nu air
+//nu   1e-6; // viscosity of water in [m^2/s] ~nu water
 
+//rho   1.225; // density of air in [kg/m^3]
+//rho   1025.; // density of water in [kg/m^3]
 rho   1.225; // ~density ='rho   (.*);'
 
 // // ~functions off

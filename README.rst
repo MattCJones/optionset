@@ -10,7 +10,7 @@ applications that reference text-based dictionary files.
 Author
 ------
 
-Matthew C. Jones <matt.c.jones.aoe@gmail.com>
+Matthew C. Jones matt.c.jones.aoe@gmail.com
 
 Installation
 ------------
@@ -46,8 +46,8 @@ the kinematic viscosity was listed in a dictionary file as,
 .. code-block:: cpp
 
     // Inside notional dictionary file
-    nu    1.5e-5; // air [m^2/s]
-    //nu    1e-6; // water [m^2/s]
+    nu    1.5e-5; // viscosity of air in units of [m^2/s]
+    //nu    1e-6; // viscosity of water in units of [m^2/s]
 
 In the above text, the property of water will be ignored, since the second line
 is commented out.  To enable water instead of air, the user could simply switch
@@ -59,8 +59,8 @@ to mark them as a parameters to be varied.
 .. code-block:: cpp
 
     // Inside notional dictionary file
-    nu    1.5e-5; // air [m^2/s] ~nu air
-    //nu    1e-6; // water [m^2/s] ~nu water
+    nu    1.5e-5; // viscosity of air in units of [m^2/s] ~nu air
+    //nu    1e-6; // viscosity of water in units of [m^2/s] ~nu water
 
 This setup allows the user to easily switch between air and water simulations
 without manually editing the dictionary file.  On the command line, simply run,
@@ -74,8 +74,8 @@ and the dictionary file will be modified and re-written as,
 .. code-block:: cpp
 
     // Inside notional dictionary file
-    //nu    1.5e-5; // air [m^2/s] ~nu air
-    nu    1e-6; // water [m^2/s] ~nu water
+    //nu    1.5e-5; // viscosity of air in units of [m^2/s] ~nu air
+    nu    1e-6; // viscosity of water in units of [m^2/s] ~nu water
 
 so that water is now the active property. Within the prescribed macros,
 :code:`~nu` is the 'option' while :code:`air` and :code:`water` are the
