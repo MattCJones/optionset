@@ -9,25 +9,26 @@ Email: matt.c.jones.aoe@gmail.com
 :license: GPLv3, see LICENSE for more details.
 """
 import unittest
+import logging
 import os
 import re
 import shlex
 import shutil
-import subprocess
 import sys
 
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
+from subprocess import run, PIPE, STDOUT
 
 sys.path.append('../optionset')
-from optionset import optionset, MAX_FLINES, MAX_FSIZE_KB
+from optionset.optionset import optionset, MAX_FLINES, MAX_FSIZE_KB
 
 AUX_DIR = Path("customAuxDir")
 BASENAME = "optionset.py"
 BIN_PATH = Path("../optionset") / BASENAME
 RUN_APP = f"{BIN_PATH} --auxiliary-dir={AUX_DIR}"
-LOG_PATH = AUX_DIR / f"log.{BASENAME}"
+LOG_PATH = AUX_DIR / f"log_{BASENAME}"
 CONFIG_PATH = AUX_DIR / "optionset.cfg"
 BASHCOMP_PATH = AUX_DIR / "bash_completion"
 FILES_TO_TEST_DIR = "filesToTest"
@@ -36,8 +37,6 @@ SOL_DIR_A = ARCHIVE_DIR / "solSetA"
 SOL_DIR_B = ARCHIVE_DIR / "solSetB"
 SOL_DIR_C = ARCHIVE_DIR / "solSetC"
 SOL_DIR_D = ARCHIVE_DIR / "solSetD"
-
-F_SKIP_TEST_SETS = False
 
 
 def ut_print(*args, **kwargs):
@@ -55,18 +54,17 @@ def test_regex(regex, str_to_search):
 
 def run_cmd(cmd_str, check=True):
     """Run a command and return the output. """
-    subproc = subprocess.run(shlex.split(cmd_str), capture_output=True,
-                             check=check)
+    subproc = run(shlex.split(cmd_str), capture_output=False, stdout=PIPE,
+                  stderr=STDOUT, check=check)
     output_str = subproc.stdout.decode('UTF-8')
     return output_str, subproc.returncode
 
 
-def imported_optionset(*args, **kwargs):
+def imported_optionset(input_arr):
     """Run optionset function imported from module. """
-    input_arr = [*args]
-    input_arr.append("--auxiliaryDir")
-    input_arr.append(AUX_DIR)
-    optionset(*args, **kwargs)
+    input_arr.append("--auxiliary-dir")
+    input_arr.append(str(AUX_DIR))
+    optionset(input_arr)
 
 
 def enable_testset_a():
@@ -197,7 +195,7 @@ class TestIO(unittest.TestCase):
         re_has_input_err = re.compile(re_str)
         output_str, _ = run_cmd(f"{RUN_APP} @invalid@Option validSetting")
         self.assertTrue(test_regex(re_has_input_err, output_str),
-                        "Invalid option")
+                        msg=f"SHOULD MATCH: {re_str}:\nAND: {output_str}")
 
         re_str = r".*InputError.*[\r\n].*Invalid setting name.*"
         re_has_input_err = re.compile(re_str)
@@ -213,7 +211,9 @@ class TestIO(unittest.TestCase):
         """Test ignored files and directories. """
         re_has_ignore_str = re.compile(".*shouldIgnore.*")
         output_str, _ = run_cmd(f"{RUN_APP} -a")
-        self.assertFalse(test_regex(re_has_ignore_str, output_str))
+        self.assertFalse(test_regex(re_has_ignore_str, output_str),
+                         msg=(f"SHOULD NOT MATCH: {re_has_ignore_str}\nAND: "
+                              f"{output_str}"))
 
     def test_extensions(self):
         """Test various valid file extensions. """
@@ -452,21 +452,23 @@ INFO:<tag><raw_opt> <setting> = \\@none none
 INFO:Generating valid files
 INFO:Valid files: \[.*\]
 INFO:Scrolling through files to set: \\@none none
-WARNING:Skipping: runtests.py
-WARNING:Reason: File exceeds kB size limit of 10
-WARNING:Skipping: filesToTest/shouldIgnore/binaryFile.dat
-WARNING:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
-WARNING:Skipping: filesToTest/shouldIgnore/binaryFile.dat
-WARNING:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
-WARNING:Skipping: filesToTest/shouldIgnore/binaryFile.dat
-WARNING:Reason: 'utf-8' codec can't decode byte .* in position \d+:.*
-WARNING:Skipping: filesToTest/shouldIgnore/tooLarge10kB.dat
-WARNING:Reason: File exceeds kB size limit of 10
-WARNING:Skipping: filesToTest/shouldIgnore/tooManyLines.dat
-WARNING:Reason: File exceeds kB size limit of 10
+INFO:Skipping: runtests.py
+\s+File exceeds kB size limit of 10
+INFO:Skipping: filesToTest/shouldIgnore/tooManyLines.dat
+\s+File exceeds kB size limit of 10
+INFO:Skipping: filesToTest/shouldIgnore/tooLarge10kB.dat
+\s+File exceeds kB size limit of 10
+INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
+\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
+INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
+\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
+INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
+\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
 INFO:Finished in \d+.\d+ s"""
         re_regression_match = re.compile(log_re_str)
-        self.assertTrue(test_regex(re_regression_match, log_str))
+        self.assertTrue(test_regex(re_regression_match, log_str),
+                        msg=f"SHOULD MATCH:\n{re_regression_match}\nAND:\n"
+                            f"{log_str}")
 
     ############################################################
     # Test renaming of options and settings
@@ -518,7 +520,7 @@ INFO:Finished in \d+.\d+ s"""
         self.assertTrue(test_regex(re_match, output_str))
 
 
-@unittest.skipIf(F_SKIP_TEST_SETS, "Skipping test sets")
+@unittest.skipIf(False, "Skipping test sets")
 class TestSets(unittest.TestCase):
     """Run through Test Sets and verify output. """
 

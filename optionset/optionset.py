@@ -18,6 +18,7 @@ import argparse
 import logging
 import os
 import re
+import sys
 
 from collections import defaultdict, namedtuple, OrderedDict
 from configparser import ConfigParser
@@ -26,11 +27,10 @@ from fnmatch import fnmatch
 from functools import wraps
 from pathlib import Path
 from pprint import pformat
-from sys import argv, exit
 from time import time
 
 __author__ = "Matthew C. Jones"
-__version__ = "20.10.23"
+__version__ = "22.03.07"
 
 __all__ = (
         "optionset",
@@ -45,12 +45,13 @@ __all__ = (
 BASENAME = Path(__file__).name
 BASHCOMP_CMD = 'os'  # bash-completion run command
 BASENAME_NO_EXT = Path(__file__).stem
-RUNCMD = BASHCOMP_CMD if '--bash-completion' in argv else BASENAME
+RUNCMD = BASHCOMP_CMD if '--bash-completion' in sys.argv else BASENAME
 AUX_DIR = Path("~/.optionset").expanduser()
-LOG_NAME = f"log.{BASENAME}"
+LOG_NAME = f"log_{BASENAME}"
+PRINT_LVL = 25  # logging level for printing to console
 BASHCOMP_NAME = "bash_completion"
 CONFIG_NAME = f"{BASENAME_NO_EXT}.cfg"
-SHORT_DESCRIPTION = f"""
+SHORT_DESCRIPTION = """
 Optionset allows users to succinctly set up and conduct parameter studies for
 applications that reference text-based dictionary files. Optionset enables
 and disables user-predefined options in text-based dictionary files in the base
@@ -220,68 +221,10 @@ Problem reading {none_keys}
 From {config_file}
 Remove the file or correct the errors.'''
 
-# Initialize global parser
-parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter, prog=RUNCMD,
-        description=SHORT_HELP_DESCRIPTION)
-parser.add_argument(
-        'option', metavar='option', nargs='?', type=str, default="",
-        help='\'option\' name')
-parser.add_argument(
-        'setting', metavar='setting', nargs='?', type=str, default="",
-        help='\'setting\' for given \'option\'')
-parser.add_argument(
-        '-H', '--help-full', dest='help_full', default=False,
-        action='store_true',
-        help=f"show full help message and exit")
-parser.add_argument(
-        '-a', '--available', dest='available', default=False,
-        action='store_true',
-        help=("show available option-setting combinations; "
-              "allows for unix-style glob-expression searching; "
-              "'-a' is implicitely enabled when no 'setting' is input"))
-parser.add_argument(
-        '-f', '--show-files', dest='showfiles', default=False,
-        action='store_true',
-        help=f"show files associate with available options")
-parser.add_argument(
-        '-v', '--verbose', dest='verbose', default=False, action='store_true',
-        help="turn on verbose output")
-parser.add_argument(
-        '-q', '--quiet', dest='quiet', default=False, action='store_true',
-        help="turn off all standard output")
-parser.add_argument(
-        '-d', '--debug', dest='debug', default=False, action='store_true',
-        help="turn on debug output in log file")
-parser.add_argument(
-        '-n', '--no-log', dest='no_log', default=False, action='store_true',
-        help=f"do not write log file to '{AUX_DIR/LOG_NAME}'")
-parser.add_argument(
-        '--rename-option', dest='rename_optn', metavar='', default='',
-        help=("rename input option in all files"))
-parser.add_argument(
-        '--rename-setting', dest='rename_setting', metavar='', default='',
-        help=("rename input setting in all files"))
-parser.add_argument(
-        '--bash-completion', dest='bashcomp', default=False,
-        action='store_true',
-        help=("auto-generate bash tab-completion script "
-              f"'{AUX_DIR/BASHCOMP_NAME}'"))
-parser.add_argument(
-        '--version', dest='version', default=False, action='store_true',
-        help="show version and exit")
-parser.add_argument(
-        '--auxiliary-dir', dest='aux_dir', type=str,
-        default=AUX_DIR, help=argparse.SUPPRESS)
-
-# Initialize global variables
-g_f_quiet = False
-g_f_verbose = False
 
 # ############################################################ #
 # Define classes
 # ############################################################ #
-
 
 class FileVarsDatabase:
     """Data structure to hold variables used in file processing.
@@ -313,17 +256,125 @@ class FileVarsDatabase:
 # Define utility functions
 # ############################################################ #
 
-def _print_and_log(print_str):
-    """Print to standard out and INFO level in log. """
-    logging.info(print_str)
-    if not g_f_quiet:
-        print(print_str)
+def _parse_args(args_arr):
+    """Parse arguments.
+
+    :args: argument array
+    :returns: parsed arguments array and parser object
+
+    """
+    # Initialize parser and define arguments
+    parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawDescriptionHelpFormatter, prog=RUNCMD,
+            description=SHORT_HELP_DESCRIPTION)
+    parser.add_argument(
+            'option', metavar='option', nargs='?', type=str, default="",
+            help='\'option\' name')
+    parser.add_argument(
+            'setting', metavar='setting', nargs='?', type=str, default="",
+            help='\'setting\' for given \'option\'')
+    parser.add_argument(
+            '-H', '--help-full', dest='help_full', default=False,
+            action='store_true',
+            help="show full help message and exit")
+    parser.add_argument(
+            '-a', '--available', dest='available', default=False,
+            action='store_true',
+            help=("show available option-setting combinations; "
+                  "allows for unix-style glob-expression searching; "
+                  "'-a' is implicitely enabled when no 'setting' is input"))
+    parser.add_argument(
+            '-f', '--show-files', dest='showfiles', default=False,
+            action='store_true',
+            help="show files associate with available options")
+    parser.add_argument(
+            '-v', '--verbose', dest='verbose', default=False,
+            action='store_true',
+            help="turn on verbose output")
+    parser.add_argument(
+            '-q', '--quiet', dest='quiet', default=False, action='store_true',
+            help="turn off all standard output")
+    parser.add_argument(
+            '-d', '--debug', dest='debug', default=False, action='store_true',
+            help="turn on debug output in log file")
+    parser.add_argument(
+            '-n', '--no-log', dest='no_log', default=False,
+            action='store_true',
+            help=f"do not write log file to '{AUX_DIR/LOG_NAME}'")
+    parser.add_argument(
+            '--rename-option', dest='rename_optn', metavar='', default='',
+            help=("rename input option in all files"))
+    parser.add_argument(
+            '--rename-setting', dest='rename_setting', metavar='', default='',
+            help=("rename input setting in all files"))
+    parser.add_argument(
+            '--bash-completion', dest='bashcomp', default=False,
+            action='store_true',
+            help=("auto-generate bash tab-completion script "
+                  f"'{AUX_DIR/BASHCOMP_NAME}'"))
+    parser.add_argument(
+            '--version', dest='version', default=False, action='store_true',
+            help="show version and exit")
+    parser.add_argument(
+            '--auxiliary-dir', dest='aux_dir', type=str,
+            default=AUX_DIR, help=argparse.SUPPRESS)
+
+    args = parser.parse_args(args_arr)
+
+    return args, parser
+
+
+def _print(msg):
+    """Log message and also print to console at default log level setting.
+
+    :msg: message to print and log
+
+    """
+    logging.log(PRINT_LVL, msg)
+
+
+def setup_logging(args):
+    """Setup logging.
+
+    :args: arguments from argument parser
+    :returns: log path
+
+    """
+
+    args.aux_dir = Path(args.aux_dir)
+    if args.no_log:
+        log_path = Path(os.devnull)
+    else:
+        args.aux_dir.mkdir(parents=True, exist_ok=True)
+        log_path = args.aux_dir / LOG_NAME
+        if Path.exists(log_path):  # use unlink(missing_ok=True) if Python 3.8
+            log_path.unlink()
+
+    log_format = "%(levelname)s:%(message)s"
+    log_lvl = 'DEBUG' if args.debug else 'INFO'
+    logging.basicConfig(filename=log_path, level=log_lvl, format=log_format)
+
+    #  All log levels are recorded in log, but only some printed to console
+    print_handler = logging.StreamHandler(stream=sys.stdout)
+    if args.verbose:  # print everything to console
+        print_handler.setLevel(logging.INFO)
+    elif args.quiet:  # print nothing unless there is a warning or error
+        print_handler.setLevel(logging.ERROR)
+    else:  # print only console messages, warnings, and errors
+        print_handler.setLevel(PRINT_LVL)
+    logging.getLogger().addHandler(print_handler)
+
+    # Add custom log level intended to print output to console
+    logging.addLevelName(PRINT_LVL, 'PRINT')
+    logging.print = _print
+
+    return log_path
 
 
 def _exit():
     """Print exit message and exit program. """
-    _print_and_log("Exiting.")
-    exit()
+    logging.warning("Exiting.")
+    sys.exit()
 
 
 def _log_before_after_commenting(func):
@@ -338,12 +389,8 @@ def _log_before_after_commenting(func):
                                                   newline_.rstrip('\r\n'))
 
         if line_ != newline_:
-            if g_f_verbose:
-                _print_and_log(fmt_line_before_mod)
-                _print_and_log(fmt_line_after_mod)
-            else:
-                logging.info(fmt_line_before_mod)
-                logging.info(fmt_line_after_mod)
+            logging.info(fmt_line_before_mod)
+            logging.info(fmt_line_after_mod)
 
         return newline_
     return log
@@ -367,12 +414,12 @@ def _handle_errors(err_types, msg):
     try:
         yield
     except err_types as err:
-        _print_and_log(msg)
+        logging.print(msg)
         logging.debug(err)
         _exit()
 
 
-def _write_bashcompletion_file(ops_db, var_ops_db,
+def _write_bashcompletion_file(ops_db, var_ops_db, parser,
                                bashcomp_path=AUX_DIR/BASHCOMP_NAME):
     """Write file that can be sourced to enable tab completion for this tool.
     """
@@ -496,7 +543,6 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
         hdr_msg += os.linesep + sub_hdr_msg
 
     # Find files common to all options
-    print("DEBUG", num_optns)
     if show_files_db is not None and num_optns > 1:
         common_files_str = "  Common files:" + os.linesep + "  "
         for common_file in sorted(set(common_files)):
@@ -504,7 +550,7 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
         body_msg += os.linesep + common_files_str
 
     full_msg = hdr_msg + body_msg
-    _print_and_log(full_msg)
+    logging.print(full_msg)
 
 
 def _add_left_right_groups(inline_re):
@@ -538,8 +584,7 @@ def _set_var_optn(line, line_num, com_ind, str_to_replace, setting,
 
 def _skip_file_warning(filename, reason):
     """Log a warning that the current file is being skipped. """
-    logging.warning(f"Skipping: {filename}")
-    logging.warning(f"Reason: {reason}")
+    logging.info(f"Skipping: {filename}\n\t{reason}")
 
 
 def _yield_utf8(file_):
@@ -587,11 +632,11 @@ def _check_varop_groups(re_str):
     all_groups = re.findall(r'([^\\]\(.*?[^\\]\))', re_str)
     if all_groups:
         if len(all_groups) > 1:
-            _print_and_log(INVALID_REGEX_GROUP_MSG.format(
+            logging.print(INVALID_REGEX_GROUP_MSG.format(
                 specific_problem='More than one regex group \'()\' found'))
             raise AttributeError
     else:
-        _print_and_log(INVALID_REGEX_GROUP_MSG.format(
+        logging.print(INVALID_REGEX_GROUP_MSG.format(
             specific_problem='No regex groups found.\r\n'))
         raise AttributeError
 
@@ -887,7 +932,7 @@ def _process_file(filepath, input_db, optns_settings_db,
     if fdb.f_filemodified:
         with open(filepath, 'w', encoding='UTF-8') as file:
             file.writelines(newlines)
-        _print_and_log(f"File modified: {file.name}")
+        logging.print(f"File modified: {file.name}")
         return True
 
     return False
@@ -982,12 +1027,12 @@ def _load_program_settings(args):
             if val is None:
                 none_keys.append(key)
         if None in config.values():
-            _print_and_log(INVALID_CONFIG_FILE_MSG.format(**locals()))
+            logging.print(INVALID_CONFIG_FILE_MSG.format(**locals()))
             _exit()
     else:
         logging.info("Using default program configuration settings:")
         if args.bashcomp or not args.no_log:  # only write when allowed to
-            _print_and_log(("Writing default program configuration settings "
+            logging.print(("Writing default program configuration settings "
                             f"to {config_file}"))
             cfg[secn] = _str_dict(config)
             with open(config_file, 'w') as file:
@@ -1027,13 +1072,13 @@ def _parse_and_check_input(args, config):
         #  No setting, available, and showfiles arguments if renaming option
         msg = "Must remove {argStr} argument if renaming an option or setting."
         if args.available:
-            _print_and_log(msg.format(argStr='available'))
+            logging.print(msg.format(argStr='available'))
             _exit()
         elif args.showfiles:
-            _print_and_log(msg.format(argStr='showfiles'))
+            logging.print(msg.format(argStr='showfiles'))
             _exit()
         elif args.rename_setting and not args.setting:
-            _print_and_log("Must input a setting if renaming a setting.")
+            logging.print("Must input a setting if renaming a setting.")
             _exit()
     else:
         # If no setting is input, default to displaying available options
@@ -1070,7 +1115,7 @@ def optionset(args_arr):
     start_time = time()  # time program
 
     # Parse arguments
-    args = parser.parse_args(args_arr)
+    args, parser = _parse_args(args_arr)
 
     if args.help_full:
         parser.description = FULL_HELP_DESCRIPTION
@@ -1078,26 +1123,11 @@ def optionset(args_arr):
         return True
 
     if args.version:
-        print(f"{BASENAME} {__version__}")
+        logging.print(f"{BASENAME} {__version__}")
         return True
 
-    # Reset global variables based on user input
-    global g_f_quiet, g_f_verbose
-    g_f_quiet = args.quiet
-    g_f_verbose = args.verbose if not g_f_quiet else False
-
-    # Set up logging
-    args.aux_dir = Path(args.aux_dir)
-    log_lvl = 'DEBUG' if args.debug else 'INFO'
-    if args.no_log:
-        log_path = Path(os.devnull)
-    else:
-        args.aux_dir.mkdir(parents=True, exist_ok=True)
-        log_path = args.aux_dir / LOG_NAME
-        if Path.exists(log_path):  # use unlink(missing_ok=True) if Python 3.8
-            log_path.unlink()
-    log_format = "%(levelname)s:%(message)s"
-    logging.basicConfig(filename=log_path, level=log_lvl, format=log_format)
+    # Setup logging
+    log_path = setup_logging(args)
 
     # Run algorithm
     logging.info("Executing main optionset function")
@@ -1124,24 +1154,24 @@ def optionset(args_arr):
 
     if args.bashcomp:
         _write_bashcompletion_file(optns_settings_db, var_optns_values_db,
+                                   parser,
                                    bashcomp_path=args.aux_dir/BASHCOMP_NAME)
 
-    if f_changes_made and g_f_verbose:
-        _print_and_log(f"See all modifications in {log_path}")
+    if f_changes_made:
+        logging.print(f"See all modifications in {log_path}")
 
     total_prog_time = time() - start_time
     total_prog_time_msg = f"Finished in {total_prog_time:1.5f} s"
-    if g_f_verbose:
-        _print_and_log(total_prog_time_msg)
-    else:
-        logging.info(total_prog_time_msg)
+    logging.info(total_prog_time_msg)
+
+    # logging.StreamHandler().flush()  # flush logging output at end
 
     return True
 
 
 def main():
     """Main function. """
-    args_arr = argv[1:] if len(argv) > 1 else [""]
+    args_arr = sys.argv[1:] if len(sys.argv) > 1 else [""]
     optionset(args_arr)
 
 
