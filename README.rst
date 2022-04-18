@@ -67,7 +67,7 @@ without manually editing the dictionary file.  On the command line, simply run,
 
 .. code-block:: bash
 
-    $ optionset.py ~nu water
+    $ optionset ~nu water
 
 and the dictionary file will be modified and re-written as,
 
@@ -85,9 +85,9 @@ underscores, and the first 1+ characters in the option must be a symbol such as
 :code:`~@$^&=|?`. Recognizable comments are denoted by :code:`//` :code:`#`
 :code:`%` :code:`!` or :code:`--`.
 
-Use :code:`optionset.py -a` to view all of the options that you have set, or
-even :code:`optionset.py -a ~nu` to view all options that begin with
-:code:`~nu`. Additionally, :code:`optionset.py -a -f` will show all options and
+Use :code:`optionset -a` to view all of the options that you have set, or
+even :code:`optionset -a ~nu` to view all options that begin with
+:code:`~nu`. Additionally, :code:`optionset -a -f` will show all options and
 their associated files.
 
 Multi-line Options
@@ -119,7 +119,7 @@ The five repeated macros could instead be written more succinctly as,
         #include "streamLines"
     }                           // *~functions on
 
-And running :code:`optionset.py ~functions off` would result in the following
+And running :code:`optionset ~functions off` would result in the following
 modifications to the file, thereby disabling the functions.
 
 .. code-block:: cpp
@@ -146,7 +146,7 @@ command must be formatted with a Perl-styled regular expression
     rho   1.225; // ~density ='rho   (.*);'
 
 Here, :code:`(.*)` matches `1.225` in :code:`rho   1.225;`.  To change this to
-`1025`, run :code:`optionset.py ~density 1025`, and the line within the
+`1025`, run :code:`optionset ~density 1025`, and the line within the
 file now becomes,
 
 .. code-block:: cpp
@@ -158,12 +158,12 @@ Viewing Available Options and Settings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To view all of the available options and settings that have been prescribed,
-run :code:`optionset.py -a`.  To narrow the search to options that start with
-:code:`~nu`, run :code:`optionset.py -a ~nu`. Additionally, :code:`optionset.py
+run :code:`optionset -a`.  To narrow the search to options that start with
+:code:`~nu`, run :code:`optionset -a ~nu`. Additionally, :code:`optionset
 -a -f` will list all associated file locations.
 
 Implementing the option/setting macros in the above examples, the following
-output is generated from running :code:`optionset.py -a`.
+output is generated from running :code:`optionset -a`.
 
 .. code-block:: bash
 
@@ -188,11 +188,11 @@ To enable Bash shell tab completion, add the following to your
 
     # Inside ~/.bashrc
     function os {
-        optionset.py "$@" --bash-completion;
+        optionset "$@" --bash-completion;
         source $HOME/.optionset/bash_completion;
     }
 
-and run the program using :code:`os` instead of :code:`optionset.py`.
+and run the program using :code:`os` instead of :code:`optionset`.
 
 Scripting
 ^^^^^^^^^
@@ -230,7 +230,7 @@ For command line usage, the following arguments are permitted.
       -q, --quiet        turn off all standard output
       -d, --debug        turn on debug output in log file
       -n, --no-log       do not write log file to
-                          '$HOME/.optionset/log.optionset.py'
+                          '$HOME/.optionset/log_optionset'
       --rename-option    rename input option in all files
       --rename-setting   rename input setting in all files
       --bash-completion  auto-generate bash tab-completion script
@@ -241,7 +241,7 @@ To view help from the terminal, run,
 
 .. code-block:: bash
 
-    $ optionset.py -h
+    $ optionset -h
 
 License
 -------

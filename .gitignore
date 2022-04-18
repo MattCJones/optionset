@@ -1,5 +1,6 @@
 *.log.optionset.py
 *__pycache__
+CHANGES*
 TODO*
 build
 dist
@@ -7,3 +8,4 @@ dist
 scripts
 tags
 archive
+do.py

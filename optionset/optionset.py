@@ -21,6 +21,7 @@ import re
 import sys
 
 from collections import defaultdict, namedtuple, OrderedDict
+from collections.abc import Callable, Generator
 from configparser import ConfigParser
 from contextlib import contextmanager
 from fnmatch import fnmatch
@@ -28,15 +29,22 @@ from functools import wraps
 from pathlib import Path
 from pprint import pformat
 from time import time
+from typing import Any, Dict, Generic, List, Mapping, NamedTuple, NoReturn,\
+    Optional, Pattern, Tuple, TypeVar, Sequence, Union, cast, overload
 
 __author__ = "Matthew C. Jones"
-__version__ = "22.03.07"
+__version__ = "22.04.16"
 
 __all__ = (
         "optionset",
         "__author__",
         "__version__",
         )
+
+# Custom types for function annotations
+ErrorType = TypeVar('ErrorType')
+FileVarsDatabaseType = TypeVar('FileVarsDatabaseType')  # IMPL 2022-04-16
+TextIOWrapper = TypeVar('TextIOWrapper')
 
 # ############################################################ #
 # Set up global constants, variables, and parser
@@ -47,7 +55,7 @@ BASHCOMP_CMD = 'os'  # bash-completion run command
 BASENAME_NO_EXT = Path(__file__).stem
 RUNCMD = BASHCOMP_CMD if '--bash-completion' in sys.argv else BASENAME
 AUX_DIR = Path("~/.optionset").expanduser()
-LOG_NAME = f"log_{BASENAME}"
+LOG_NAME = f"log_optionset.txt"
 PRINT_LVL = 25  # logging level for printing to console
 BASHCOMP_NAME = "bash_completion"
 CONFIG_NAME = f"{BASENAME_NO_EXT}.cfg"
@@ -145,8 +153,8 @@ IGNORE_DIRS = ['.[a-zA-Z0-9]*', '__pycache__', '[0-9]', '[0-9][0-9]*',
                'trash',
                ]  # UNIX-based wild cards
 IGNORE_FILES = [BASENAME, LOG_NAME, BASHCOMP_NAME, CONFIG_NAME, '.*', 'log.*',
-                '*.log', '*.pyc', '*.gz', '*.png', '*.jpg', '*.obj', '*.stl',
-                '*.stp', '*.step',
+                'log_*', '*.log', '*.pyc', '*.gz', '*.png', '*.jpg', '*.obj',
+                '*.stl', '*.stp', '*.step',
                 ]  # UNIX-based wild cards
 MAX_FLINES = 9999  # maximum lines per file
 MAX_FSIZE_KB = 10  # maximum file size, kilobytes
@@ -176,9 +184,10 @@ COMMD_LINE = (r'^(?P<nested_com_inds>{nested_com_inds})'
               r'(?P<non_com>\s*{com_ind}(?:(?!{com_ind}).)+)' + WHOLE_COMMENT)
 ONLY_OPTN_SETTING = r'({mtag}*)({tag}+)({raw_opt})\s+({setting})\s?'
 INLINE_OPTN_SETTING = r'((?:\s|{mtag}))({option})(\s+)({setting})((?:\s|$))'
-GENERIC_RE_VARS = {'com_ind': ANY_COMMENT_IND, 'mtag': MULTI_TAG,
-                   'tag': ANY_TAG, 'raw_opt': ANY_RAW_OPTN,
-                   'setting': ANY_SETTING, 'nested_com_inds': ''}
+GENERIC_RE_VARS = {
+    'com_ind': ANY_COMMENT_IND, 'mtag': MULTI_TAG, 'tag': ANY_TAG,
+    'raw_opt': ANY_RAW_OPTN, 'setting': ANY_SETTING, 'nested_com_inds': ''
+}
 
 # Error messages
 INCOMPLETE_INPUT_MSG = f'''InputError:
@@ -226,159 +235,190 @@ Remove the file or correct the errors.'''
 # Define classes
 # ############################################################ #
 
-class FileVarsDatabase:
+class FileVarsDatabase(Generic[FileVarsDatabaseType]):
     """Data structure to hold variables used in file processing.
-       Input file path, user input structure, and comment index.
-    """
-    def __init__(self, filepath, input_db):
-        """Initialize variables. """
-        self.filepath = filepath
-        self.input_db = input_db
+        Input file path, user input structure, and comment index.
 
-        self.f_filemodified = False  # True if file is modified
-        self.f_multiline_active = False  # if active, toggle line
-        self.f_multicommd = None  # True if multi-line option is commented
-        self.nested_lvl = 0  # +1 level every commented multi-line option
-        self.nested_increment = 0  # increments the nested level
+        filepath (str): Path to input file
+        input_db (NamedTuple): Input database
+        f_filemodified (bool): Flag to track if file is modified
+        f_multiline_active (bool): Flag to track if in multi-line option active
+            - if active, toggle line
+        f_multicommd (Union[bool, None]): Flag to track if multi-line option is
+            commented
+        nested_lvl (int): Track level of nesting; +1 level every commented
+            multi-line option
+        nested_increment (int): Amount to incrememnt in nested level
+        com_ind (Union[str, None]): Comment indicator
+        re_vars (Mapping[str, str]): Regular expression strings
+        nested_optn_db (Dict): Regular expression strings
+    """
+    def __init__(self, filepath: str, input_db: NamedTuple) -> None:
+        """Initialize variables.
+
+        Args:
+            filepath (str): Path to input file
+            input_db (NamedTuple): Input database
+        """
+        self.filepath: str = filepath
+        self.input_db: NamedTuple = input_db
+
+        self.f_filemodified: bool = False
+        self.f_multiline_active: bool = False
+        self.f_multicommd: Union[bool, None] = None
+        self.nested_lvl: int = 0
+        self.nested_increment: int = 0
 
         # Get string that signifies a commented line
-        self.com_ind = _get_comment_indicator(filepath)
+        self.com_ind: str = cast(str, _get_comment_indicator(filepath))
 
         # Prepare regular expressions
-        self.re_vars = GENERIC_RE_VARS
+        self.re_vars: Mapping[str, Any] = GENERIC_RE_VARS
         self.re_vars['com_ind'] = self.com_ind  # set file-specific indicator
 
         # Prepare nested option database
-        self.nested_optn_db = OrderedDict()
+        self.nested_optn_db: Dict = OrderedDict()
 
 
 # ############################################################ #
 # Define utility functions
 # ############################################################ #
 
-def _parse_args(args_arr):
+def _parse_args(
+    args_arr: Sequence[str]
+) -> Tuple[argparse.Namespace, argparse.ArgumentParser]:
     """Parse arguments.
 
-    :args: argument array
-    :returns: parsed arguments array and parser object
+    Args:
+        args (Sequence[str]): Argument array
 
+    Returns:
+        Tuple[argparse.Namespace, argparse.ArgumentParser]:
+            Parsed arguments array and parser object
     """
     # Initialize parser and define arguments
     parser = argparse.ArgumentParser(
-            formatter_class=argparse.RawDescriptionHelpFormatter, prog=RUNCMD,
-            description=SHORT_HELP_DESCRIPTION)
+        formatter_class=argparse.RawDescriptionHelpFormatter, prog=RUNCMD,
+        description=SHORT_HELP_DESCRIPTION)
     parser.add_argument(
-            'option', metavar='option', nargs='?', type=str, default="",
-            help='\'option\' name')
+        'option', metavar='option', nargs='?', type=str, default="",
+        help='\'option\' name')
     parser.add_argument(
-            'setting', metavar='setting', nargs='?', type=str, default="",
-            help='\'setting\' for given \'option\'')
+        'setting', metavar='setting', nargs='?', type=str, default="",
+        help='\'setting\' for given \'option\'')
     parser.add_argument(
-            '-H', '--help-full', dest='help_full', default=False,
-            action='store_true',
-            help="show full help message and exit")
+        '-H', '--help-full', dest='help_full', default=False,
+        action='store_true',
+        help="show full help message and exit")
     parser.add_argument(
-            '-a', '--available', dest='available', default=False,
-            action='store_true',
-            help=("show available option-setting combinations; "
-                  "allows for unix-style glob-expression searching; "
-                  "'-a' is implicitely enabled when no 'setting' is input"))
+        '-a', '--available', dest='available', default=False,
+        action='store_true',
+        help=("show available option-setting combinations; "
+              "allows for unix-style glob-expression searching; "
+              "'-a' is implicitely enabled when no 'setting' is input"))
     parser.add_argument(
-            '-f', '--show-files', dest='showfiles', default=False,
-            action='store_true',
-            help="show files associate with available options")
+        '-f', '--show-files', dest='showfiles', default=False,
+        action='store_true',
+        help="show files associate with available options")
     parser.add_argument(
-            '-v', '--verbose', dest='verbose', default=False,
-            action='store_true',
-            help="turn on verbose output")
+        '-v', '--verbose', dest='verbose', default=False,
+        action='store_true',
+        help="turn on verbose output")
     parser.add_argument(
-            '-q', '--quiet', dest='quiet', default=False, action='store_true',
-            help="turn off all standard output")
+        '-q', '--quiet', dest='quiet', default=False, action='store_true',
+        help="turn off all standard output")
     parser.add_argument(
-            '-d', '--debug', dest='debug', default=False, action='store_true',
-            help="turn on debug output in log file")
+        '-d', '--debug', dest='debug', default=False, action='store_true',
+        help="turn on debug output in log file")
     parser.add_argument(
-            '-n', '--no-log', dest='no_log', default=False,
-            action='store_true',
-            help=f"do not write log file to '{AUX_DIR/LOG_NAME}'")
+        '-n', '--no-log', dest='no_log', default=False, action='store_true',
+        help=f"do not write log file to '{AUX_DIR/LOG_NAME}'")
     parser.add_argument(
-            '--rename-option', dest='rename_optn', metavar='', default='',
-            help=("rename input option in all files"))
+        '--rename-option', dest='rename_optn', metavar='', default='',
+        help=("rename input option in all files"))
     parser.add_argument(
-            '--rename-setting', dest='rename_setting', metavar='', default='',
-            help=("rename input setting in all files"))
+        '--rename-setting', dest='rename_setting', metavar='', default='',
+        help=("rename input setting in all files"))
     parser.add_argument(
-            '--bash-completion', dest='bashcomp', default=False,
-            action='store_true',
-            help=("auto-generate bash tab-completion script "
-                  f"'{AUX_DIR/BASHCOMP_NAME}'"))
+        '--bash-completion', dest='bashcomp', default=False,
+        action='store_true',
+        help=("auto-generate bash tab-completion script "
+              f"'{AUX_DIR/BASHCOMP_NAME}'"))
     parser.add_argument(
-            '--version', dest='version', default=False, action='store_true',
-            help="show version and exit")
+        '--version', dest='version', default=False, action='store_true',
+        help="show version and exit")
     parser.add_argument(
-            '--auxiliary-dir', dest='aux_dir', type=str,
-            default=AUX_DIR, help=argparse.SUPPRESS)
+        '--auxiliary-dir', dest='aux_dir', type=str, default=AUX_DIR,
+        help=argparse.SUPPRESS)
 
     args = parser.parse_args(args_arr)
 
     return args, parser
 
 
-def _print(msg):
+def _print(msg: str) -> None:
     """Log message and also print to console at default log level setting.
 
-    :msg: message to print and log
-
+    Args:
+        msg (str): Message to print and log
     """
     logging.log(PRINT_LVL, msg)
 
 
-def setup_logging(args):
+def _setup_logging(args: argparse.Namespace) -> Path:
     """Setup logging.
 
-    :args: arguments from argument parser
-    :returns: log path
+    Args:
+        args (argparse.Namespace): arguments from argument parser
 
+    Returns:
+        Path: Log path
     """
 
-    args.aux_dir = Path(args.aux_dir)
     if args.no_log:
         log_path = Path(os.devnull)
     else:
-        args.aux_dir.mkdir(parents=True, exist_ok=True)
-        log_path = args.aux_dir / LOG_NAME
-        if Path.exists(log_path):  # use unlink(missing_ok=True) if Python 3.8
+        Path(args.aux_dir).mkdir(parents=True, exist_ok=True)
+        log_path = Path(args.aux_dir) / LOG_NAME
+        if log_path.exists():  # use unlink(missing_ok=True) if Python 3.8+
             log_path.unlink()
 
     log_format = "%(levelname)s:%(message)s"
     log_lvl = 'DEBUG' if args.debug else 'INFO'
     logging.basicConfig(filename=log_path, level=log_lvl, format=log_format)
 
-    #  All log levels are recorded in log, but only some printed to console
-    print_handler = logging.StreamHandler(stream=sys.stdout)
+    # All log levels are recorded in log, but only some printed to console
+    stream_handler = logging.StreamHandler(stream=sys.stdout)
     if args.verbose:  # print everything to console
-        print_handler.setLevel(logging.INFO)
+        stream_handler.setLevel(logging.INFO)
     elif args.quiet:  # print nothing unless there is a warning or error
-        print_handler.setLevel(logging.ERROR)
+        stream_handler.setLevel(logging.ERROR)
     else:  # print only console messages, warnings, and errors
-        print_handler.setLevel(PRINT_LVL)
-    logging.getLogger().addHandler(print_handler)
+        stream_handler.setLevel(PRINT_LVL)
+    logging.getLogger().addHandler(stream_handler)
 
     # Add custom log level intended to print output to console
     logging.addLevelName(PRINT_LVL, 'PRINT')
-    logging.print = _print
+    logging.print = _print  # noqa: E142
 
     return log_path
 
 
-def _exit():
+def _exit() -> NoReturn:
     """Print exit message and exit program. """
     logging.warning("Exiting.")
     sys.exit()
 
 
-def _log_before_after_commenting(func):
-    """Wrapper to add file modifications to the log file. """
+def _log_before_after_commenting(func: Callable) -> Callable:
+    """Wrapper to add file modifications to the log file.
+
+    Args:
+        func (Callable): Function to wrap
+
+    Returns:
+        Callable: Wrapped function
+    """
     @wraps(func)
     def log(*args_, **kwargs):
         line_, line_num_ = args_[0], args_[1]
@@ -396,34 +436,72 @@ def _log_before_after_commenting(func):
     return log
 
 
-def _uncomment(line, line_num, com_ind):
-    """Uncomment a line. Input requires comment indicator string. """
+def _uncomment(line: str, line_num: int, com_ind: str) -> str:
+    """Uncomment a line. Input requires comment indicator string.
+
+    Args:
+        line (str): Line to uncomment
+        line_num (int): Line number - called by function wrapper
+        com_ind (str): String that denoates a comment (such as '#' for Python)
+
+    Returns:
+        str: Line that is now uncommented
+    """
     line = re.sub(rf'^(\s*)({com_ind})', r"\1", line)
     return line
 
 
-def _comment(line, line_num, com_ind):
-    """Comment a line. Input requires comment indicator string. """
+def _comment(line: str, line_num: int, com_ind: str) -> str:
+    """Comment a line. Input requires comment indicator string.
+
+    Args:
+        line (str): Line to uncomment
+        line_num (int): Line number - called by function wrapper
+        com_ind (str): String that denoates a comment (such as '#' for Python)
+
+    Returns:
+        str: Line that is now commented
+    """
     line = com_ind + line
     return line
 
 
 @contextmanager
-def _handle_errors(err_types, msg):
-    """Use 'with:' to handle an error and print a message. """
+def _handle_errors(
+    err_types: Sequence[BaseException], msg: str
+) -> Union[Generator, NoReturn]:
+    """Use 'with:' to handle an error and print a message.
+
+    Args:
+        err_types (BaseException): List of error types to handle
+        msg (str): Message to output on error
+
+    Returns:
+        Union[None, NoReturn]: If error, exit after handling error, else None
+    """
     try:
         yield
-    except err_types as err:
-        logging.print(msg)
+    except err_types as err:  # type: ignore
+        logging.print(msg)  # noqa: E142
         logging.debug(err)
         _exit()
 
 
-def _write_bashcompletion_file(ops_db, var_ops_db, parser,
-                               bashcomp_path=AUX_DIR/BASHCOMP_NAME):
+def _write_bashcompletion_file(ops_db: Mapping[str, str],
+                               var_ops_db: Mapping[str, str],
+                               help_str: Mapping[str, str],
+                               bashcomp_path: Optional[Path] = AUX_DIR/BASHCOMP_NAME
+    ) -> None:
     """Write file that can be sourced to enable tab completion for this tool.
+
+    Args:
+        ops_db (Mapping[str, str]): Options database
+        var_ops_db (Mapping[str, str]): Options database for variable options
+        help_str (Mapping[str, str]): help Documentation to be parsed for
+            command-line option names
+        bashcomp_path (Optional[Path]): File path to store Bash completion
+            settings
     """
-    help_str = parser.format_help()
     re_short_usage = re.compile(r"\s(-\w+)")
     re_long_usage = re.compile(r"\s(--[a-zA-Z\-]+)")
     default_cmd_opts_short = [
@@ -496,10 +574,25 @@ complete -F _optionset {bashcomp_cmd_b}"""
         file.writelines(file_contents)
 
 
-def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
-                     f_available=True):
+def _print_available(
+    ops_db: Mapping[str, str],
+    var_ops_db: Mapping[str, str],
+    show_files_db: Mapping[str, str],
+    glob_pat: Optional[str] = '*',
+    f_available: Optional[bool] = True
+    ) -> None:
     """Print available options and options for use; optionally sort with unix
-    expression. """
+    expression.
+
+    Args:
+        ops_db (Mapping[str, str]): Options database
+        var_ops_db (Mapping[str, str]): Options database for variable options
+        show_files_db (Mapping[str, str]): Database to store files that are
+            modified; optionally shown
+        glob_pat (Optional[str]): Glob-style pattern to match when searching
+            options
+        f_available (Optional[bool]): True if showing available settings
+    """
     common_files = []
     body_msg = ""
     num_optns = 0
@@ -531,8 +624,8 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
                     files_str = ' '.join(show_files_db[optn_str].keys())
                     body_msg += os.linesep + "  " + files_str + os.linesep
                     body_msg += "-"*60
-                    for file_ in show_files_db[optn_str].keys():
-                        common_files.append(file_)
+                    for file in show_files_db[optn_str].keys():
+                        common_files.append(file)
 
     sub_hdr_msg = r"('  inactive  ', '> active <', '? both ?', '= variable =')"
     if not body_msg:
@@ -553,9 +646,16 @@ def _print_available(ops_db, var_ops_db, show_files_db, glob_pat='*',
     logging.print(full_msg)
 
 
-def _add_left_right_groups(inline_re):
+def _add_left_right_groups(inline_re: str) -> str:
     r"""Add left and right groups to regex.
-    For example: \( (.*) 0 0 \) becomes (\( )(.*)( 0 0 \)) """
+    For example: \( (.*) 0 0 \) becomes (\( )(.*)( 0 0 \))
+
+    Args:
+        inline_re (str): Inline regular expression to modify for internal use
+
+    Returns:
+        str: Modified inline regular expression
+    """
     # Must add one to get rid of preceding character match
     left_paren_ind = re.search(r'[^\\]([\(])', inline_re).start() + 1
     right_paren_ind = re.search(r'[^\\]([\)])', inline_re).start() + 1
@@ -566,9 +666,28 @@ def _add_left_right_groups(inline_re):
     return new_inline_re
 
 
-def _set_var_optn(line, line_num, com_ind, str_to_replace, setting,
-                  nested_com_inds, non_com, whole_com):
-    """Return line with new variable option set. """
+def _set_var_optn(
+    line: str,
+    line_num: int,
+    com_ind: str,
+    str_to_replace: str,
+    setting: str,
+    nested_com_inds: str,
+    non_com: str,
+    whole_com: str
+    ) -> str:
+    """Return line with new variable option set.
+
+    Args:
+        line (str): Line to uncomment
+        line_num (int): Line number - called by function wrapper
+        com_ind (str): String that denoates a comment (such as '#' for Python)
+        str_to_replace (str): String to replace
+        setting (str): Setting
+        nested_com_inds (str): Nested comment indicators
+        non_com (str): Portion of line that is not a comment
+        whole_com (str): Portion of line that is the whole comment
+    """
     # Add 2 new groups, one for the left side and the other for the right
     inline_re = _strip_setting_regex(setting)
     logging.info(f"Setting variable option:{inline_re}:{str_to_replace}")
@@ -582,22 +701,42 @@ def _set_var_optn(line, line_num, com_ind, str_to_replace, setting,
     return newline
 
 
-def _skip_file_warning(filename, reason):
-    """Log a warning that the current file is being skipped. """
+def _skip_file_warning(filename: str, reason: str) -> None:
+    """Log a warning that the current file is being skipped.
+
+    Args:
+        filename (str): Name of file
+        reason (str): Reason for skipping file
+    """
     logging.info(f"Skipping: {filename}\n\t{reason}")
 
 
-def _yield_utf8(file_):
-    """Yield file lines only if they are UTF-8 encoded (non-binary). """
+def _yield_utf8(file: TextIOWrapper) -> Generator[str, None, None]:
+    """Yield file lines only if they are UTF-8 encoded (non-binary).
+
+    Args:
+        file (TextIOWrapper): Filestream to read from
+
+    Yields:
+        Generator[str, None, None]: file lines yielded one by one
+    """
     try:
-        for line in file_:
+        for line in file:
             yield line
     except UnicodeDecodeError as err:
-        _skip_file_warning(file_.name, err)
+        _skip_file_warning(file.name, err)
 
 
-def _line_count(filename, line_limit):
-    """Return number of lines in a file unless file exceeds line limit. """
+def _line_count(filename: str, line_limit: int) -> int:
+    """Return number of lines in a file unless file exceeds line limit.
+
+    Args:
+        filename (str): File to count lines from
+        line_limit (int): Maximum line limit in file
+
+    Returns:
+        int: Number of lines in the file
+    """
     linecount = 0
     with open(filename, 'r', encoding='UTF-8') as file:
         for _ in _yield_utf8(file):
@@ -607,8 +746,15 @@ def _line_count(filename, line_limit):
     return linecount
 
 
-def _get_comment_indicator(filename):
-    """Get comment indicator from filename ('#', '%', '!', '//', or '--'). """
+def _get_comment_indicator(filename: str) -> Union[str, None]:
+    """Get comment indicator from filename ('#', '%', '!', '//', or '--').
+
+    Args:
+        filename (str): filename to extract comment indicator from
+
+    Returns:
+        Union[str, None]: None unless error is raised
+    """
     with open(filename, 'r', encoding='UTF-8') as file:
         commd_line_re = re.compile(rf'^\s*({ANY_COMMENT_IND}).*')
         for line in _yield_utf8(file):
@@ -627,28 +773,53 @@ def _get_comment_indicator(filename):
     return None
 
 
-def _check_varop_groups(re_str):
-    """Calculate the number of regex groups designated by (). """
+def _check_varop_groups(re_str: str) -> Union[None, NoReturn]:
+    """Calculate the number of regex groups designated by ().
+
+    Args:
+        re_str (str): Regular expression
+
+    Returns:
+        Union[None, NoReturn]: None unless error is raised
+    """
     all_groups = re.findall(r'([^\\]\(.*?[^\\]\))', re_str)
     if all_groups:
         if len(all_groups) > 1:
             logging.print(INVALID_REGEX_GROUP_MSG.format(
                 specific_problem='More than one regex group \'()\' found'))
             raise AttributeError
+        else:
+            return None
     else:
         logging.print(INVALID_REGEX_GROUP_MSG.format(
             specific_problem='No regex groups found.\r\n'))
         raise AttributeError
 
 
-def _strip_setting_regex(setting_str):
-    """Return in-line regular expression using setting."""
+def _strip_setting_regex(setting_str: str) -> str:
+    """Return in-line regular expression using setting.
+
+    Args:
+        setting_str (str): Stripped setting
+    """
     return setting_str[2:-1]  # remove surrounding =''
 
 
-def _parse_inline_regex(non_commented_text, setting, var_err_msg=""):
+def _parse_inline_regex(
+    non_commented_text: str,
+    setting: str,
+    var_err_msg: Optional[str] = ""
+    ):
     """Parse variable option value using user-defined regular expression
     stored in 'setting'.
+
+    Args:
+        non_commented_text (str): Portion of text that is not a comment
+        setting (str): Setting to search for
+        var_err_msg (Optional[str]): Optional error message. Defaults to "".
+
+    Returns:
+        str: Portion of line to replace
     """
     # Attribute handles regex fail. Index handles .group() fail
     with _handle_errors(err_types=(AttributeError, IndexError, re.error),
@@ -660,8 +831,13 @@ def _parse_inline_regex(non_commented_text, setting, var_err_msg=""):
 
 
 @_log_before_after_commenting  # requires line, line_num as first args
-def _process_line(line, line_num, fdb, optns_settings_db,
-                  var_optns_values_db, show_files_db):
+def _process_line(line: str,
+                  line_num: int,
+                  fdb: object,
+                  optns_settings_db: Mapping[str, Mapping[str, str]],
+                  var_optns_values_db: Mapping[str, Mapping[str, str]],
+                  show_files_db: Mapping[str, Mapping[str, str]]
+                  ) -> str:
     """Apply logic and process options/settings in a single line of the current
     file.  This is the heart of the code.
 
@@ -691,6 +867,19 @@ def _process_line(line, line_num, fdb, optns_settings_db,
                 example, '@option_a setting_a' and '@option_b setting_b' are
                 active, while '@option_a setting_b' and '@option_b setting_b'
                 are inactive.
+
+    Args:
+        line (str): Line to operate on
+        line_num (int): Line number within file
+        fdb (object): File variables database
+        optns_settings_db (Mapping[str, Mapping[str, str]]): Option + settings
+            database
+        var_optns_values_db (Mapping[str, Mapping[str, str]]): Variable options
+            + values database
+        show_files_db (`Mapping[str, Mapping[str, str]]): Files to show database
+
+    Returns:
+        str: new line
     """
     newline = line
     inp = fdb.input_db
@@ -885,8 +1074,12 @@ def _process_line(line, line_num, fdb, optns_settings_db,
     return newline
 
 
-def _process_file(filepath, input_db, optns_settings_db,
-                  var_optns_values_db, show_files_db):
+def _process_file(filepath: str,
+                  input_db: NamedTuple,
+                  optns_settings_db: NamedTuple,
+                  var_optns_values_db: NamedTuple,
+                  show_files_db: NamedTuple
+) -> bool:
     """Process individual file.
     Update optns_settings_db and var_optns_values_db
     Return if changes have been made or not
@@ -894,6 +1087,16 @@ def _process_file(filepath, input_db, optns_settings_db,
     General algorithm is to scroll through file line by line, applying
     consistent logic to make build database of available options or to make the
     desired changes.
+
+    Args:
+        filepath (str): file to process
+        input_db (NamedTuple): input database
+        optns_settings_db (NamedTuple): options + settings database
+        var_optns_values_db (NamedTuple): variable options + values database
+        show_files_db (NamedTuple): show files database
+
+    Returns:
+        bool: True if file changed else False
     """
     logging.debug(f"FILE CANDIDATE: {filepath}")
 
@@ -938,9 +1141,17 @@ def _process_file(filepath, input_db, optns_settings_db,
     return False
 
 
-def _scroll_through_files(valid_files, input_db):
-    """Scroll through files, line by line. This function:
-    * This is heart of the code. """
+def _scroll_through_files(valid_files: Sequence[str], input_db: NamedTuple
+) -> Tuple[Dict, Dict, Dict, bool]:
+    """Scroll through files, line by line.  This is heart of the code.
+
+    Args:
+        valid_files (Sequence[str]): List of valid files to run through
+        input_db (NamedTuple): Database of options and settings
+
+    Returns:
+        Tuple[Dict, Dict, Dict, bool]: Output data in a tuple
+    """
     inp = input_db
     optns_settings_db = defaultdict(lambda: defaultdict(lambda: None))
     var_optns_values_db = defaultdict(lambda: defaultdict(lambda: None))
@@ -971,8 +1182,15 @@ def _scroll_through_files(valid_files, input_db):
             f_changes_made)
 
 
-def _fn_compare(glob_set, compare_array):
+def _fn_compare(glob_set: Sequence[str], compare_array: Sequence[str]) -> bool:
     """Compare set with unix * expressions with array of files or directories.
+
+    Args:
+        glob_set (Sequence[str]): Sequence of glob-style search inputs
+        compare_array (Sequence[str]): Sequence to compare to
+
+    Returns:
+        bool: True if match is found else False
     """
     for glob_ in glob_set:
         for cmpr in compare_array:
@@ -981,24 +1199,48 @@ def _fn_compare(glob_set, compare_array):
     return False
 
 
-def _gen_valid_files(ignore_files, ignore_dirs):
-    """Generator to get non-ignored files in non-ignored directories. """
+def _gen_valid_files(
+    ignore_files: Sequence[str],
+    ignore_dirs: Sequence[str]
+    ) -> Generator[Path]:
+    """Generator to get non-ignored files in non-ignored directories.
+
+    Args:
+        ignore_files (Sequence[str]): files to ignore
+        ignore_dirs (Sequence[str]): directories to ignore
+
+    Yields:
+        Generator[Path]: valid files, one at a time
+    """
     for dirpath, _, files in os.walk('.', followlinks=True):
         if not _fn_compare(ignore_dirs, dirpath.split(os.sep)):
-            for file_ in files:
-                baseFileName = Path(file_).name
+            for file in files:
+                baseFileName = Path(file).name
                 if not _fn_compare(ignore_files, (baseFileName,)):
-                    yield Path(f"{dirpath}/{file_}")
+                    yield Path(f"{dirpath}/{file}")
 
 
-def _str_dict(dict_):
+def _str_dict(dict_: Mapping[str, str]) -> Mapping[str, str]:
     """Return dictionary with string representation of arrays (no brackets).
+
+    Args:
+        dict_ (Mapping[str, str]): _description_
+
+    Returns:
+        Mapping[str, str]: string version of dictionary
     """
     return {k: str(v).lstrip('[').rstrip(']') for k, v in dict_.items()}
 
 
-def _array_from_str(array_str):
-    """Return an array from a string of an array. """
+def _array_from_str(array_str: str) -> Union[List[str], None]:
+    """Return an array from a string of an array.
+
+    Args:
+        array_str (str): String of an array to turn into actual array
+
+    Returns:
+        Union[List[str], None]: Parsed array else None
+    """
     if isinstance(array_str, str):
         arr = [a.replace("'", '').replace('"', '').strip()
                for a in array_str.split(',')]
@@ -1007,15 +1249,23 @@ def _array_from_str(array_str):
     return arr
 
 
-def _load_program_settings(args):
-    """Load program settings if file provided by user, else use default. """
+def _load_program_settings(args: Sequence[str]) -> Dict[str, str]:
+    """Load program settings if file provided by user, else use default.
+
+    Args:
+        args (Sequence[str]): Sequence of arguments input by user
+
+    Returns:
+        Dict[str, str]: Configuration database (max lines, max size, ignore
+            dirs, ignore files)
+    """
     config_file = Path(args.aux_dir) / f"{BASENAME_NO_EXT}.cfg"
     config = DEFAULT_CONFIG.copy()
     cfg = ConfigParser()
     cfg.optionxform = str  # maintain case even on Windows
     secn = 'Files'
 
-    if Path.exists(config_file):
+    if config_file.exists():
         logging.info(f"Reading program settings from {config_file}:")
         cfg.read(config_file)
         config['max_flines'] = int(cfg[secn].get('max_flines'))
@@ -1033,7 +1283,7 @@ def _load_program_settings(args):
         logging.info("Using default program configuration settings:")
         if args.bashcomp or not args.no_log:  # only write when allowed to
             logging.print(("Writing default program configuration settings "
-                            f"to {config_file}"))
+                           f"to {config_file}"))
             cfg[secn] = _str_dict(config)
             with open(config_file, 'w') as file:
                 cfg.write(file)
@@ -1043,15 +1293,29 @@ def _load_program_settings(args):
     return config
 
 
-def _check_setting_fmt(setting_str):
-    """Ensure proper setting format.  """
+def _check_setting_fmt(setting_str: str) -> str:
+    """Ensure proper setting format.
+
+    Args:
+        setting_str (str): Setting to format
+
+    Returns:
+        str: Formatted setting
+    """
     with _handle_errors(err_types=AttributeError, msg=INVALID_SETTING_MSG):
         setting = re.search(f"(^{VALID_INPUT_SETTING}$)", setting_str).group(0)
     return setting
 
 
-def _check_optn_fmt(optn_str):
-    """Ensure proper option format.  """
+def _check_optn_fmt(optn_str: str) -> Tuple[str, str]:
+    """Ensure proper option format.
+
+    Args:
+        optn_str (str): Option to format
+
+    Returns:
+        Tuple[str, str]: Literal tag string and raw option string
+    """
     check_tag_option_re = re.compile(
         "^({mtag}*)({tag}+)({raw_opt})$".format(**GENERIC_RE_VARS))
     with _handle_errors(err_types=(AttributeError), msg=INVALID_OPTN_MSG):
@@ -1060,8 +1324,19 @@ def _check_optn_fmt(optn_str):
     return literal_tag, raw_opt
 
 
-def _parse_and_check_input(args, config):
-    """Parse input arguments. """
+def _parse_and_check_input(
+    args: argparse.Namespace,
+    config: Dict
+    ) -> NamedTuple:
+    """Parse input arguments.
+
+    Args:
+        args (argparse.Namespace): Input user argments to parse
+        config (Dict): Configuration settings for optionset
+
+    Returns:
+        NamedTuple: Input database
+    """
     InputDb = namedtuple('InputDb',
                          ['tag', 'raw_opt', 'setting', 'f_available',
                           'f_showfiles', 'f_bashcomp', 'rename_optn',
@@ -1110,8 +1385,16 @@ def _parse_and_check_input(args, config):
                    max_fsize_kb=config['max_fsize_kb'])
 
 
-def optionset(args_arr):
-    """Main optionset function. Input array of string arguments. """
+def optionset(args_arr: Sequence[str]) -> bool:
+    """Main optionset function. Input array of string arguments.
+
+    Args:
+        args_arr (Sequence[str]): array of command-line-style arguments to be
+            parsed
+
+    Returns:
+        bool: True if successful completion
+    """
     start_time = time()  # time program
 
     # Parse arguments
@@ -1127,7 +1410,7 @@ def optionset(args_arr):
         return True
 
     # Setup logging
-    log_path = setup_logging(args)
+    log_path = _setup_logging(args)
 
     # Run algorithm
     logging.info("Executing main optionset function")
@@ -1153,9 +1436,10 @@ def optionset(args_arr):
                          show_files_db, glob_pat, args.available)
 
     if args.bashcomp:
+        bashcomp_path_ = Path(args.aux_dir) / BASHCOMP_NAME
         _write_bashcompletion_file(optns_settings_db, var_optns_values_db,
-                                   parser,
-                                   bashcomp_path=args.aux_dir/BASHCOMP_NAME)
+                                   help_str=parser.format_help(),
+                                   bashcomp_path=bashcomp_path_)
 
     if f_changes_made:
         logging.print(f"See all modifications in {log_path}")
@@ -1164,12 +1448,10 @@ def optionset(args_arr):
     total_prog_time_msg = f"Finished in {total_prog_time:1.5f} s"
     logging.info(total_prog_time_msg)
 
-    # logging.StreamHandler().flush()  # flush logging output at end
-
     return True
 
 
-def main():
+def main() -> None:
     """Main function. """
     args_arr = sys.argv[1:] if len(sys.argv) > 1 else [""]
     optionset(args_arr)

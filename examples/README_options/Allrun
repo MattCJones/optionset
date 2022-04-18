@@ -4,9 +4,9 @@
 reset_options()
 {
     echo "Resetting options."
-    optionset.py ~nu air -q
-    optionset.py ~functions on -q
-    optionset.py ~density 1.225 -q
+    optionset ~nu air -q
+    optionset ~functions on -q
+    optionset ~density 1.225 -q
 }
 
 print_line()
@@ -25,40 +25,39 @@ request_keypress()
 
 print_line
 reset_options
-echo "View help with 'optionset.py -h'":
+echo "View help with 'optionset -h'":
 request_keypress
-optionset.py -h
-request_keypress
-
-echo "The currently set options can be viewed with 'optionset.py -a'":
-request_keypress
-optionset.py -a
+optionset -h
 request_keypress
 
-echo "To view what files these options are prescribed in, run 'optionset.py -a -f'":
+echo "The currently set options can be viewed with 'optionset'":
 request_keypress
-optionset.py -a -f
-request_keypress
-
-echo "To set kinematic viscosity to that of water, run 'optionset.py ~nu water -v'":
-request_keypress
-optionset.py ~nu water -v
+optionset
 request_keypress
 
-echo "To disable functions, run 'optionset.py ~functions off -v'":
+echo "To view what files these options are prescribed in, run 'optionset -f'":
 request_keypress
-optionset.py ~functions off -v
-request_keypress
-
-echo "To set density to that of water, run 'optionset.py ~density 1025 -v'":
-request_keypress
-optionset.py ~density 1025 -v
+optionset -f
 request_keypress
 
-echo "To see all now-modified options and settings, run 'optionset.py -a'":
+echo "To set kinematic viscosity to that of water, run 'optionset ~nu water -v'":
 request_keypress
-optionset.py -a
+optionset ~nu water -v
+request_keypress
+
+echo "To disable functions, run 'optionset ~functions off -v'":
+request_keypress
+optionset ~functions off -v
+request_keypress
+
+echo "To set density to that of water, run 'optionset ~density 1025 -v'":
+request_keypress
+optionset ~density 1025 -v
+request_keypress
+
+echo "To see all now-modified options and settings, run 'optionset'":
+request_keypress
+optionset
 request_keypress
 
 reset_options
-

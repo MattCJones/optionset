@@ -2,8 +2,9 @@
 
 ## Description
 
-The OpenFOAM cavity tutorial is an example of how dictionary files can be
-modified to build user-defined options and settings.
+This is an example of how [OpenFOAM](https://openfoam.org 'OpenFOAM')
+dictionary files can be modified to build user-defined options and settings for
+running Computational Fluid Dynamics (CFD) simulations.
 Use,
 
     $ optionset.py -h

@@ -8,35 +8,43 @@ Email: matt.c.jones.aoe@gmail.com
 :copyright: 2020 by Optionset authors, see AUTHORS for more details.
 :license: GPLv3, see LICENSE for more details.
 """
-import unittest
-import logging
+import pkg_resources
 import os
 import re
 import shlex
 import shutil
 import sys
+import time
+import unittest
 
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 from subprocess import run, PIPE, STDOUT
 
-sys.path.append('../optionset')
-from optionset.optionset import optionset, MAX_FLINES, MAX_FSIZE_KB
+from optionset.optionset import optionset, LOG_NAME, MAX_FLINES, MAX_FSIZE_KB
 
-AUX_DIR = Path("customAuxDir")
+THIS_DIR = Path(__file__).parent
+TEST_DIR = THIS_DIR
+# TEST_DIR = Path(pkg_resources.resource_filename('optionset', "tests"))
+AUX_DIR = TEST_DIR / "customAuxDir"
 BASENAME = "optionset.py"
-BIN_PATH = Path("../optionset") / BASENAME
+BIN_PATH = Path("optionset")  # command-line interface must be in PATH
 RUN_APP = f"{BIN_PATH} --auxiliary-dir={AUX_DIR}"
-LOG_PATH = AUX_DIR / f"log_{BASENAME}"
+LOG_PATH = AUX_DIR / LOG_NAME
 CONFIG_PATH = AUX_DIR / "optionset.cfg"
 BASHCOMP_PATH = AUX_DIR / "bash_completion"
-FILES_TO_TEST_DIR = "filesToTest"
-ARCHIVE_DIR = Path("archive")
+FILES_TO_TEST_DIR = TEST_DIR / "filesToTest"
+ARCHIVE_DIR = TEST_DIR / "archive"
 SOL_DIR_A = ARCHIVE_DIR / "solSetA"
 SOL_DIR_B = ARCHIVE_DIR / "solSetB"
 SOL_DIR_C = ARCHIVE_DIR / "solSetC"
 SOL_DIR_D = ARCHIVE_DIR / "solSetD"
+
+# Uncomment to test manually and without installing:
+# sys.path.append(TEST_DIR / '../optionset')
+# from optionset.optionset import optionset, MAX_FLINES, MAX_FSIZE_KB
+# BIN_PATH = TEST_DIR / "../optionset" / BASENAME
 
 
 def ut_print(*args, **kwargs):
@@ -177,6 +185,8 @@ class TestIO(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        ut_print(f"Changing to directory: {TEST_DIR}")
+        os.chdir(TEST_DIR)
         ut_print("\nChecking proper input and output")
         ut_print("Resetting options")
         enable_default_options()
@@ -232,7 +242,9 @@ class TestIO(unittest.TestCase):
             + "------------------------------------------------------------"
         re_has_file_paths_str = re.compile(match_str)
         output_str, _ = run_cmd(f"{RUN_APP} @validSyntax -f")
-        self.assertTrue(test_regex(re_has_file_paths_str, output_str))
+        self.assertTrue(test_regex(re_has_file_paths_str, output_str),
+                        msg=f"SHOULD MATCH:\n{re_has_file_paths_str}\nAND:\n"
+                            f"{output_str}")
 
     ############################################################
     # Test Python import functionality
@@ -412,7 +424,7 @@ class TestIO(unittest.TestCase):
                      "'--verbose' '--version'")
         bash_comp_re_str = rf"""#!/bin/bash
 # Auto-generated Bash completion settings for optionset.py
-# Run 'source customAuxDir/bash_completion' to enable
+# Run 'source [a-zA-Z\/\\ ]*customAuxDir/bash_completion' to enable
 .*
 \s*{short_opts}
 \s*{long_opts}
@@ -420,7 +432,9 @@ class TestIO(unittest.TestCase):
 complete -F _optionset os
 complete -F _optionset optionset"""
         re_match = re.compile(bash_comp_re_str, re.DOTALL)
-        self.assertTrue(test_regex(re_match, bash_comp_str))
+        self.assertTrue(test_regex(re_match, bash_comp_str),
+                        msg=f"SHOULD MATCH:\n{re_match}\nAND:\n{bash_comp_str}"
+                        )
 
     def test_config_file(self):
         """Test that configuration file is properly written. """
@@ -437,33 +451,33 @@ max_fsize_kb = {MAX_FSIZE_KB}"""
         self.assertTrue(test_regex(re_match, cfg_str))
 
     ############################################################
-    # Regression test: show that output is unchanged in with new version
+    # Regression test: show that output is unchanged in new version
     ############################################################
     def test_log_output(self):
-        """Regression test of log output. """
+        """Regression test: show that output is unchanged in new version"""
         _, _ = run_cmd(f"{RUN_APP} @none none")
         with open(LOG_PATH, 'r') as file:
             log_str = file.read()
         log_re_str = r"""INFO:Executing main optionset function
 INFO:Checking input options
-INFO:Reading program settings from \w+/optionset.cfg:
+INFO:Reading program settings from [a-zA-Z\/\\ ]+/optionset.cfg:
 INFO:\{.*\}
 INFO:<tag><raw_opt> <setting> = \\@none none
 INFO:Generating valid files
 INFO:Valid files: \[.*\]
 INFO:Scrolling through files to set: \\@none none
-INFO:Skipping: runtests.py
+INFO:Skipping: test_optionset.py
+\s+File exceeds kB size limit of 10
+INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
+\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
+INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
+\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
+INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
+\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
+INFO:Skipping: filesToTest/shouldIgnore/tooLarge10kB.dat
 \s+File exceeds kB size limit of 10
 INFO:Skipping: filesToTest/shouldIgnore/tooManyLines.dat
 \s+File exceeds kB size limit of 10
-INFO:Skipping: filesToTest/shouldIgnore/tooLarge10kB.dat
-\s+File exceeds kB size limit of 10
-INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
-\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
-INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
-\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
-INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
-\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
 INFO:Finished in \d+.\d+ s"""
         re_regression_match = re.compile(log_re_str)
         self.assertTrue(test_regex(re_regression_match, log_str),
@@ -529,6 +543,9 @@ class TestSets(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         ut_print("\nChecking all test sets")
+        ut_print(f"Changing to directory: {TEST_DIR}")
+        os.chdir(TEST_DIR)
+
 
     @classmethod
     def tearDownClass(cls):
@@ -602,6 +619,9 @@ def mvdir_to_trash(dir_str):
 def generate_solution_sets():
     """Generation solution test sets that are compared to with diff utility.
     """
+    ut_print(f"Changing to directory: {TEST_DIR}")
+    os.chdir(TEST_DIR)
+
     mvdir_to_trash(ARCHIVE_DIR)
     mkdirs(ARCHIVE_DIR)
 
@@ -625,7 +645,51 @@ def generate_solution_sets():
     enable_default_options()
 
 
-if __name__ == '__main__':
+@unittest.skipIf(False, "Skipping time test")
+class TestRuntime(unittest.TestCase):
+    """Benchmark how long it takes to run the code. """
+
+    @classmethod
+    def setUpClass(cls):
+        ut_print("\nBenchmarking run time")
+        ut_print(f"Changing to directory: {TEST_DIR}")
+        os.chdir(TEST_DIR)
+
+
+    @classmethod
+    def tearDownClass(cls):
+        ut_print("\nResetting options")
+        enable_default_options()
+
+    @unittest.skipIf(not os.path.exists(SOL_DIR_A), f"No dir: {SOL_DIR_A}")
+    def testset_a(self):
+        """Test Set A (default). """
+
+        runtimes = []
+        N = 10
+        for i in range(N):
+            start_time = time.time()
+            output_str, _ = run_cmd(f"{BIN_PATH} -q @op 2")
+            this_time = time.time() - start_time
+            runtimes.append(this_time)
+            ut_print("Time [s]: {:1.5f}".format(this_time))
+        
+        # Compute mean run time
+        sum = 0
+        for runtime in runtimes:
+            sum += runtime
+        runtime_mean = sum/len(runtimes)
+
+        ut_print("Avg run time [s]: {:1.5f}".format(runtime_mean))
+
+        runtime_allowable = 0.4  # seconds 
+        self.assertLess(runtime_mean, runtime_allowable,
+                        msg=("Mean run time of {runtime_mean:.2f) s is lower "
+                             f"than allowable of {runtime_allowable:.2f} s."))
+
+
+def main():
+    """Main function """
     F_help = '-h' in sys.argv or '--help' in sys.argv
     F_generate = '-g' in sys.argv or '--generate' in sys.argv
 
@@ -635,8 +699,13 @@ if __name__ == '__main__':
         print(f"usage: {scriptName} [-g] [--generate] "
               f"to generate solution sets")
         print("---------------------------- or ----------------------------")
+        return
 
     if F_generate:
         generate_solution_sets()
     else:  # run tests as normal
         unittest.main()
+
+
+if __name__ == '__main__':
+    main()
