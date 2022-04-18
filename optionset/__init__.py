@@ -9,4 +9,4 @@ Use -h to view help.
 :license: GPLv3, see LICENSE for more details.
 """
 
-from .optionset import *
+from .optionset import optionset  # noqa: F401

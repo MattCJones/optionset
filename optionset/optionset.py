@@ -30,16 +30,17 @@ from pathlib import Path
 from pprint import pformat
 from time import time
 from typing import Any, Dict, Generic, List, Mapping, NamedTuple, NoReturn,\
-    Optional, Pattern, Tuple, TypeVar, Sequence, Union, cast, overload
+    Optional, Tuple, TypeVar, Sequence, Union, cast
+# from typing import Pattern, overload  # unused
 
 __author__ = "Matthew C. Jones"
 __version__ = "22.04.16"
 
 __all__ = (
-        "optionset",
-        "__author__",
-        "__version__",
-        )
+    "optionset",
+    "__author__",
+    "__version__",
+)
 
 # Custom types for function annotations
 ErrorType = TypeVar('ErrorType')
@@ -55,7 +56,7 @@ BASHCOMP_CMD = 'os'  # bash-completion run command
 BASENAME_NO_EXT = Path(__file__).stem
 RUNCMD = BASHCOMP_CMD if '--bash-completion' in sys.argv else BASENAME
 AUX_DIR = Path("~/.optionset").expanduser()
-LOG_NAME = f"log_optionset.txt"
+LOG_NAME = "log_optionset.txt"
 PRINT_LVL = 25  # logging level for printing to console
 BASHCOMP_NAME = "bash_completion"
 CONFIG_NAME = f"{BASENAME_NO_EXT}.cfg"
@@ -487,11 +488,12 @@ def _handle_errors(
         _exit()
 
 
-def _write_bashcompletion_file(ops_db: Mapping[str, str],
-                               var_ops_db: Mapping[str, str],
-                               help_str: Mapping[str, str],
-                               bashcomp_path: Optional[Path] = AUX_DIR/BASHCOMP_NAME
-    ) -> None:
+def _write_bashcompletion_file(
+    ops_db: Mapping[str, str],
+    var_ops_db: Mapping[str, str],
+    help_str: Mapping[str, str],
+    bashcomp_path: Optional[Path] = AUX_DIR/BASHCOMP_NAME
+) -> None:
     """Write file that can be sourced to enable tab completion for this tool.
 
     Args:
@@ -580,7 +582,7 @@ def _print_available(
     show_files_db: Mapping[str, str],
     glob_pat: Optional[str] = '*',
     f_available: Optional[bool] = True
-    ) -> None:
+) -> None:
     """Print available options and options for use; optionally sort with unix
     expression.
 
@@ -675,7 +677,7 @@ def _set_var_optn(
     nested_com_inds: str,
     non_com: str,
     whole_com: str
-    ) -> str:
+) -> str:
     """Return line with new variable option set.
 
     Args:
@@ -809,7 +811,7 @@ def _parse_inline_regex(
     non_commented_text: str,
     setting: str,
     var_err_msg: Optional[str] = ""
-    ):
+):
     """Parse variable option value using user-defined regular expression
     stored in 'setting'.
 
@@ -876,7 +878,8 @@ def _process_line(line: str,
             database
         var_optns_values_db (Mapping[str, Mapping[str, str]]): Variable options
             + values database
-        show_files_db (`Mapping[str, Mapping[str, str]]): Files to show database
+        show_files_db (`Mapping[str, Mapping[str, str]]): Files to show
+            database
 
     Returns:
         str: new line
@@ -899,12 +902,10 @@ def _process_line(line: str,
     uncommd_line_match = uncommd_line_re.search(line)
     if commd_line_match:  # must search for commented before uncommented
         nested_com_inds, non_com, whole_com =\
-                commd_line_match.group('nested_com_inds', 'non_com',
-                                       'whole_com')
+            commd_line_match.group('nested_com_inds', 'non_com', 'whole_com')
     elif uncommd_line_match:
         nested_com_inds, non_com, whole_com =\
-                uncommd_line_match.group('nested_com_inds', 'non_com',
-                                         'whole_com')
+            uncommd_line_match.group('nested_com_inds', 'non_com', 'whole_com')
     else:
         nested_com_inds, non_com, whole_com = "", "", ""
     f_comment = bool(commd_line_match)
@@ -1074,11 +1075,12 @@ def _process_line(line: str,
     return newline
 
 
-def _process_file(filepath: str,
-                  input_db: NamedTuple,
-                  optns_settings_db: NamedTuple,
-                  var_optns_values_db: NamedTuple,
-                  show_files_db: NamedTuple
+def _process_file(
+    filepath: str,
+    input_db: NamedTuple,
+    optns_settings_db: NamedTuple,
+    var_optns_values_db: NamedTuple,
+    show_files_db: NamedTuple
 ) -> bool:
     """Process individual file.
     Update optns_settings_db and var_optns_values_db
@@ -1141,7 +1143,9 @@ def _process_file(filepath: str,
     return False
 
 
-def _scroll_through_files(valid_files: Sequence[str], input_db: NamedTuple
+def _scroll_through_files(
+    valid_files: Sequence[str],
+    input_db: NamedTuple
 ) -> Tuple[Dict, Dict, Dict, bool]:
     """Scroll through files, line by line.  This is heart of the code.
 
@@ -1202,7 +1206,7 @@ def _fn_compare(glob_set: Sequence[str], compare_array: Sequence[str]) -> bool:
 def _gen_valid_files(
     ignore_files: Sequence[str],
     ignore_dirs: Sequence[str]
-    ) -> Generator[Path]:
+) -> Generator[Path]:
     """Generator to get non-ignored files in non-ignored directories.
 
     Args:
@@ -1327,7 +1331,7 @@ def _check_optn_fmt(optn_str: str) -> Tuple[str, str]:
 def _parse_and_check_input(
     args: argparse.Namespace,
     config: Dict
-    ) -> NamedTuple:
+) -> NamedTuple:
     """Parse input arguments.
 
     Args:

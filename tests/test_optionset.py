@@ -8,7 +8,6 @@ Email: matt.c.jones.aoe@gmail.com
 :copyright: 2020 by Optionset authors, see AUTHORS for more details.
 :license: GPLv3, see LICENSE for more details.
 """
-import pkg_resources
 import os
 import re
 import shlex
@@ -469,11 +468,11 @@ INFO:Scrolling through files to set: \\@none none
 INFO:Skipping: test_optionset.py
 \s+File exceeds kB size limit of 10
 INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
-\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
+\s+'utf-8' codec can't decode byte 0xd9 in position 8:.*
 INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
-\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
+\s+'utf-8' codec can't decode byte 0xd9 in position 8:.*
 INFO:Skipping: filesToTest/shouldIgnore/binaryFile.dat
-\s+'utf-8' codec can't decode byte 0xd9 in position 8: invalid continuation byte
+\s+'utf-8' codec can't decode byte 0xd9 in position 8:.*
 INFO:Skipping: filesToTest/shouldIgnore/tooLarge10kB.dat
 \s+File exceeds kB size limit of 10
 INFO:Skipping: filesToTest/shouldIgnore/tooManyLines.dat
@@ -545,7 +544,6 @@ class TestSets(unittest.TestCase):
         ut_print("\nChecking all test sets")
         ut_print(f"Changing to directory: {TEST_DIR}")
         os.chdir(TEST_DIR)
-
 
     @classmethod
     def tearDownClass(cls):
@@ -655,7 +653,6 @@ class TestRuntime(unittest.TestCase):
         ut_print(f"Changing to directory: {TEST_DIR}")
         os.chdir(TEST_DIR)
 
-
     @classmethod
     def tearDownClass(cls):
         ut_print("\nResetting options")
@@ -673,7 +670,7 @@ class TestRuntime(unittest.TestCase):
             this_time = time.time() - start_time
             runtimes.append(this_time)
             ut_print("Time [s]: {:1.5f}".format(this_time))
-        
+
         # Compute mean run time
         sum = 0
         for runtime in runtimes:
@@ -682,7 +679,7 @@ class TestRuntime(unittest.TestCase):
 
         ut_print("Avg run time [s]: {:1.5f}".format(runtime_mean))
 
-        runtime_allowable = 0.4  # seconds 
+        runtime_allowable = 0.4  # seconds
         self.assertLess(runtime_mean, runtime_allowable,
                         msg=("Mean run time of {runtime_mean:.2f) s is lower "
                              f"than allowable of {runtime_allowable:.2f} s."))
