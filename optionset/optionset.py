@@ -26,12 +26,14 @@ from configparser import ConfigParser
 from contextlib import contextmanager
 from fnmatch import fnmatch
 from functools import wraps
+from io import TextIOWrapper
 from pathlib import Path
 from pprint import pformat
 from time import time
-from typing import Any, Dict, Generic, List, Mapping, NamedTuple, NoReturn,\
-    Optional, Tuple, TypeVar, Sequence, Union, cast
-# from typing import Pattern, overload  # unused
+from typing import Any, Dict, List, Match, Mapping,\
+    NoReturn, Tuple, Sequence, Union, cast
+# from typing import Generic, NamedTuple, Optional, Pattern, TypeVar,\
+#    overload  # unused
 
 __author__ = "Matthew C. Jones"
 __version__ = "22.04.16"
@@ -43,9 +45,12 @@ __all__ = (
 )
 
 # Custom types for function annotations
-ErrorType = TypeVar('ErrorType')
-FileVarsDatabaseType = TypeVar('FileVarsDatabaseType')  # IMPL 2022-04-16
-TextIOWrapper = TypeVar('TextIOWrapper')
+ErrorType = Any  # IMPL 2022-04-18
+# ErrorType = Union[AttributeError, IndexError, UnicodeDecodeError]
+FileVarsDatabaseType = Any  # IMPL 2022-04-18
+# FileVarsDatabaseType = TypeVar('FileVarsDatabaseType')
+DbType = Dict[str, Dict[str, Union[str, bool, None]]]
+NTType = Any
 
 # ############################################################ #
 # Set up global constants, variables, and parser
@@ -236,12 +241,13 @@ Remove the file or correct the errors.'''
 # Define classes
 # ############################################################ #
 
-class FileVarsDatabase(Generic[FileVarsDatabaseType]):
+# class FileVarsDatabase(Generic[FileVarsDatabaseType]):  # DELETE
+class FileVarsDatabase():
     """Data structure to hold variables used in file processing.
         Input file path, user input structure, and comment index.
 
         filepath (str): Path to input file
-        input_db (NamedTuple): Input database
+        input_db (NTType): Input database
         f_filemodified (bool): Flag to track if file is modified
         f_multiline_active (bool): Flag to track if in multi-line option active
             - if active, toggle line
@@ -254,15 +260,15 @@ class FileVarsDatabase(Generic[FileVarsDatabaseType]):
         re_vars (Mapping[str, str]): Regular expression strings
         nested_optn_db (Dict): Regular expression strings
     """
-    def __init__(self, filepath: str, input_db: NamedTuple) -> None:
+    def __init__(self, filepath: Path, input_db: NTType) -> None:
         """Initialize variables.
 
         Args:
-            filepath (str): Path to input file
-            input_db (NamedTuple): Input database
+            filepath (Path): Path to input file
+            input_db (NTType): Input database
         """
-        self.filepath: str = filepath
-        self.input_db: NamedTuple = input_db
+        self.filepath: Path = filepath
+        self.input_db: NTType = input_db
 
         self.f_filemodified: bool = False
         self.f_multiline_active: bool = False
@@ -400,7 +406,7 @@ def _setup_logging(args: argparse.Namespace) -> Path:
 
     # Add custom log level intended to print output to console
     logging.addLevelName(PRINT_LVL, 'PRINT')
-    logging.print = _print  # noqa: E142
+    logging.print = _print  # type: ignore
 
     return log_path
 
@@ -469,7 +475,7 @@ def _comment(line: str, line_num: int, com_ind: str) -> str:
 
 @contextmanager
 def _handle_errors(
-    err_types: Sequence[BaseException], msg: str
+    err_types: Sequence[ErrorType], msg: str
 ) -> Union[Generator, NoReturn]:
     """Use 'with:' to handle an error and print a message.
 
@@ -483,26 +489,26 @@ def _handle_errors(
     try:
         yield
     except err_types as err:  # type: ignore
-        logging.print(msg)  # noqa: E142
+        logging.print(msg)  # type: ignore
         logging.debug(err)
         _exit()
 
 
 def _write_bashcompletion_file(
-    ops_db: Mapping[str, str],
-    var_ops_db: Mapping[str, str],
-    help_str: Mapping[str, str],
-    bashcomp_path: Optional[Path] = AUX_DIR/BASHCOMP_NAME
+    ops_db: DbType,
+    var_ops_db: DbType,
+    help_str: str,
+    bashcomp_path: Path = AUX_DIR/BASHCOMP_NAME
 ) -> None:
     """Write file that can be sourced to enable tab completion for this tool.
 
     Args:
-        ops_db (Mapping[str, str]): Options database
-        var_ops_db (Mapping[str, str]): Options database for variable options
+        ops_db (DbType): Options database
+        var_ops_db (DbType): Options database for variable options
         help_str (Mapping[str, str]): help Documentation to be parsed for
             command-line option names
-        bashcomp_path (Optional[Path]): File path to store Bash completion
-            settings
+        bashcomp_path (Path): File path to store Bash
+            completion settings
     """
     re_short_usage = re.compile(r"\s(-\w+)")
     re_long_usage = re.compile(r"\s(--[a-zA-Z\-]+)")
@@ -577,23 +583,23 @@ complete -F _optionset {bashcomp_cmd_b}"""
 
 
 def _print_available(
-    ops_db: Mapping[str, str],
-    var_ops_db: Mapping[str, str],
-    show_files_db: Mapping[str, str],
-    glob_pat: Optional[str] = '*',
-    f_available: Optional[bool] = True
+    ops_db: DbType,
+    var_ops_db: DbType,
+    show_files_db: Union[DbType, None],
+    glob_pat: str = '*',
+    f_available: bool = True
 ) -> None:
     """Print available options and options for use; optionally sort with unix
     expression.
 
     Args:
-        ops_db (Mapping[str, str]): Options database
-        var_ops_db (Mapping[str, str]): Options database for variable options
-        show_files_db (Mapping[str, str]): Database to store files that are
+        ops_db (DbType): Options database
+        var_ops_db (DbType): Options database for variable options
+        show_files_db (Union[DbType, None]): Database to store files that are
             modified; optionally shown
-        glob_pat (Optional[str]): Glob-style pattern to match when searching
+        glob_pat (str): Glob-style pattern to match when searching
             options
-        f_available (Optional[bool]): True if showing available settings
+        f_available (bool): True if showing available settings
     """
     common_files = []
     body_msg = ""
@@ -645,7 +651,7 @@ def _print_available(
         body_msg += os.linesep + common_files_str
 
     full_msg = hdr_msg + body_msg
-    logging.print(full_msg)
+    logging.print(full_msg)  # type: ignore
 
 
 def _add_left_right_groups(inline_re: str) -> str:
@@ -659,8 +665,10 @@ def _add_left_right_groups(inline_re: str) -> str:
         str: Modified inline regular expression
     """
     # Must add one to get rid of preceding character match
-    left_paren_ind = re.search(r'[^\\]([\(])', inline_re).start() + 1
-    right_paren_ind = re.search(r'[^\\]([\)])', inline_re).start() + 1
+    left_paren_ind = re.search(
+        r'[^\\]([\(])', inline_re).start() + 1  # type: ignore
+    right_paren_ind = re.search(
+        r'[^\\]([\)])', inline_re).start() + 1  # type: ignore
     left = inline_re[:left_paren_ind]
     mid = inline_re[left_paren_ind:right_paren_ind + 1]
     right = inline_re[right_paren_ind + 1:]
@@ -703,11 +711,11 @@ def _set_var_optn(
     return newline
 
 
-def _skip_file_warning(filename: str, reason: str) -> None:
+def _skip_file_warning(filename: Path, reason: str) -> None:
     """Log a warning that the current file is being skipped.
 
     Args:
-        filename (str): Name of file
+        filename (Path): Name of file
         reason (str): Reason for skipping file
     """
     logging.info(f"Skipping: {filename}\n\t{reason}")
@@ -726,14 +734,14 @@ def _yield_utf8(file: TextIOWrapper) -> Generator[str, None, None]:
         for line in file:
             yield line
     except UnicodeDecodeError as err:
-        _skip_file_warning(file.name, err)
+        _skip_file_warning(Path(file.name), str(err))
 
 
-def _line_count(filename: str, line_limit: int) -> int:
+def _line_count(filename: Path, line_limit: int) -> int:
     """Return number of lines in a file unless file exceeds line limit.
 
     Args:
-        filename (str): File to count lines from
+        filename (Path): File to count lines from
         line_limit (int): Maximum line limit in file
 
     Returns:
@@ -748,11 +756,11 @@ def _line_count(filename: str, line_limit: int) -> int:
     return linecount
 
 
-def _get_comment_indicator(filename: str) -> Union[str, None]:
+def _get_comment_indicator(filename: Path) -> Union[str, None]:
     """Get comment indicator from filename ('#', '%', '!', '//', or '--').
 
     Args:
-        filename (str): filename to extract comment indicator from
+        filename (Path): filename to extract comment indicator from
 
     Returns:
         Union[str, None]: None unless error is raised
@@ -787,13 +795,13 @@ def _check_varop_groups(re_str: str) -> Union[None, NoReturn]:
     all_groups = re.findall(r'([^\\]\(.*?[^\\]\))', re_str)
     if all_groups:
         if len(all_groups) > 1:
-            logging.print(INVALID_REGEX_GROUP_MSG.format(
+            logging.print(INVALID_REGEX_GROUP_MSG.format(  # type: ignore
                 specific_problem='More than one regex group \'()\' found'))
             raise AttributeError
         else:
             return None
     else:
-        logging.print(INVALID_REGEX_GROUP_MSG.format(
+        logging.print(INVALID_REGEX_GROUP_MSG.format(  # type: ignore
             specific_problem='No regex groups found.\r\n'))
         raise AttributeError
 
@@ -810,7 +818,7 @@ def _strip_setting_regex(setting_str: str) -> str:
 def _parse_inline_regex(
     non_commented_text: str,
     setting: str,
-    var_err_msg: Optional[str] = ""
+    var_err_msg: str = ""
 ):
     """Parse variable option value using user-defined regular expression
     stored in 'setting'.
@@ -818,27 +826,29 @@ def _parse_inline_regex(
     Args:
         non_commented_text (str): Portion of text that is not a comment
         setting (str): Setting to search for
-        var_err_msg (Optional[str]): Optional error message. Defaults to "".
+        var_err_msg (str): Optional error message. Defaults to "".
 
     Returns:
         str: Portion of line to replace
     """
     # Attribute handles regex fail. Index handles .group() fail
-    with _handle_errors(err_types=(AttributeError, IndexError, re.error),
+    with _handle_errors(err_types=(AttributeError, IndexError),
                         msg=var_err_msg):
         inline_re = _strip_setting_regex(setting)
         _check_varop_groups(inline_re)
-        str_to_replace = re.search(inline_re, non_commented_text).group(1)
+        str_to_replace = cast(Match,
+                              re.search(inline_re, non_commented_text)
+                              ).group(1)
     return str_to_replace
 
 
 @_log_before_after_commenting  # requires line, line_num as first args
 def _process_line(line: str,
                   line_num: int,
-                  fdb: object,
-                  optns_settings_db: Mapping[str, Mapping[str, str]],
-                  var_optns_values_db: Mapping[str, Mapping[str, str]],
-                  show_files_db: Mapping[str, Mapping[str, str]]
+                  fdb: FileVarsDatabaseType,
+                  optns_settings_db: DbType,
+                  var_optns_values_db: DbType,
+                  show_files_db: DbType
                   ) -> str:
     """Apply logic and process options/settings in a single line of the current
     file.  This is the heart of the code.
@@ -873,13 +883,10 @@ def _process_line(line: str,
     Args:
         line (str): Line to operate on
         line_num (int): Line number within file
-        fdb (object): File variables database
-        optns_settings_db (Mapping[str, Mapping[str, str]]): Option + settings
-            database
-        var_optns_values_db (Mapping[str, Mapping[str, str]]): Variable options
-            + values database
-        show_files_db (`Mapping[str, Mapping[str, str]]): Files to show
-            database
+        fdb (FileVarsDatabaseType): File variables database
+        optns_settings_db (DbType): Option + settings database
+        var_optns_values_db (DbType): Variable options + values database
+        show_files_db (DbType): Files to show database
 
     Returns:
         str: new line
@@ -916,9 +923,9 @@ def _process_line(line: str,
                   f"({fdb.com_ind},{str(f_comment)[0]}):{line[:-1]}")
 
     # Parse commented part of line; determine inline matches
-    inline_optn_count = defaultdict(lambda: 0)
-    inline_optn_match = defaultdict(lambda: False)
-    inline_setting_match = defaultdict(lambda: False)
+    inline_optn_count: Dict[str, int] = defaultdict(lambda: 0)
+    inline_optn_match: Dict[str, bool] = defaultdict(lambda: False)
+    inline_setting_match: Dict[str, bool] = defaultdict(lambda: False)
     f_inline_optn_match = False
     f_inline_setting_match = False
     for mtag, tag, raw_opt, setting in tag_optn_setting_matches:
@@ -1041,7 +1048,7 @@ def _process_line(line: str,
                         if replace_str == str_to_replace:
                             logging.info(f"Option already set: {replace_str}")
                         else:
-                            with _handle_errors(err_types=AttributeError,
+                            with _handle_errors(err_types=(AttributeError,),
                                                 msg=var_err_msg):
                                 newline = _set_var_optn(
                                     line, line_num, fdb.com_ind, replace_str,
@@ -1076,11 +1083,11 @@ def _process_line(line: str,
 
 
 def _process_file(
-    filepath: str,
-    input_db: NamedTuple,
-    optns_settings_db: NamedTuple,
-    var_optns_values_db: NamedTuple,
-    show_files_db: NamedTuple
+    filepath: Path,
+    input_db: NTType,
+    optns_settings_db: NTType,
+    var_optns_values_db: NTType,
+    show_files_db: NTType
 ) -> bool:
     """Process individual file.
     Update optns_settings_db and var_optns_values_db
@@ -1091,11 +1098,11 @@ def _process_file(
     desired changes.
 
     Args:
-        filepath (str): file to process
-        input_db (NamedTuple): input database
-        optns_settings_db (NamedTuple): options + settings database
-        var_optns_values_db (NamedTuple): variable options + values database
-        show_files_db (NamedTuple): show files database
+        filepath (Path): file to process
+        input_db (NTType): input database
+        optns_settings_db (NTType): options + settings database
+        var_optns_values_db (NTType): variable options + values database
+        show_files_db (NTType): show files database
 
     Returns:
         bool: True if file changed else False
@@ -1137,32 +1144,34 @@ def _process_file(
     if fdb.f_filemodified:
         with open(filepath, 'w', encoding='UTF-8') as file:
             file.writelines(newlines)
-        logging.print(f"File modified: {file.name}")
+        logging.print(f"File modified: {file.name}")  # type: ignore
         return True
 
     return False
 
 
 def _scroll_through_files(
-    valid_files: Sequence[str],
-    input_db: NamedTuple
-) -> Tuple[Dict, Dict, Dict, bool]:
+    valid_files: Sequence[Path],
+    input_db: NTType
+) -> Tuple[DbType, DbType, Union[DbType, None], bool]:
     """Scroll through files, line by line.  This is heart of the code.
 
     Args:
-        valid_files (Sequence[str]): List of valid files to run through
-        input_db (NamedTuple): Database of options and settings
+        valid_files (Sequence[Path]): List of valid files to run through
+        input_db (NTType): Database of options and settings
 
     Returns:
-        Tuple[Dict, Dict, Dict, bool]: Output data in a tuple
+        Tuple[DbType, DbType, Union[DbType, None], bool]: Output
+            data in a tuple
     """
     inp = input_db
-    optns_settings_db = defaultdict(lambda: defaultdict(lambda: None))
-    var_optns_values_db = defaultdict(lambda: defaultdict(lambda: None))
+    optns_settings_db: DbType = defaultdict(lambda: defaultdict(lambda: None))
+    var_optns_values_db: DbType = defaultdict(
+        lambda: defaultdict(lambda: None)
+    )
+    show_files_db: Union[DbType, None] = None
     if inp.f_showfiles:
         show_files_db = defaultdict(lambda: defaultdict(lambda: None))
-    else:
-        show_files_db = None
     f_changes_made = False
 
     if inp.f_available or inp.f_showfiles:
@@ -1206,7 +1215,7 @@ def _fn_compare(glob_set: Sequence[str], compare_array: Sequence[str]) -> bool:
 def _gen_valid_files(
     ignore_files: Sequence[str],
     ignore_dirs: Sequence[str]
-) -> Generator[Path]:
+) -> Generator[Path, None, None]:
     """Generator to get non-ignored files in non-ignored directories.
 
     Args:
@@ -1224,11 +1233,11 @@ def _gen_valid_files(
                     yield Path(f"{dirpath}/{file}")
 
 
-def _str_dict(dict_: Mapping[str, str]) -> Mapping[str, str]:
+def _str_dict(dict_: Mapping[str, object]) -> Mapping[str, str]:
     """Return dictionary with string representation of arrays (no brackets).
 
     Args:
-        dict_ (Mapping[str, str]): _description_
+        dict_ (Mapping[str, object]): _description_
 
     Returns:
         Mapping[str, str]: string version of dictionary
@@ -1253,20 +1262,21 @@ def _array_from_str(array_str: str) -> Union[List[str], None]:
     return arr
 
 
-def _load_program_settings(args: Sequence[str]) -> Dict[str, str]:
+def _load_program_settings(args: argparse.Namespace) -> Dict[str, Any]:
     """Load program settings if file provided by user, else use default.
 
     Args:
-        args (Sequence[str]): Sequence of arguments input by user
+        args (argparse.Namespace): Sequence of arguments input by user
 
     Returns:
-        Dict[str, str]: Configuration database (max lines, max size, ignore
+        Dict[str, Any]: Configuration database (max lines, max size, ignore
             dirs, ignore files)
     """
     config_file = Path(args.aux_dir) / f"{BASENAME_NO_EXT}.cfg"
     config = DEFAULT_CONFIG.copy()
     cfg = ConfigParser()
-    cfg.optionxform = str  # maintain case even on Windows
+    # Maintain case even on Windows
+    cfg.optionxform = str  # type: ignore
     secn = 'Files'
 
     if config_file.exists():
@@ -1281,13 +1291,17 @@ def _load_program_settings(args: Sequence[str]) -> Dict[str, str]:
             if val is None:
                 none_keys.append(key)
         if None in config.values():
-            logging.print(INVALID_CONFIG_FILE_MSG.format(**locals()))
+            logging.print(  # type: ignore
+                INVALID_CONFIG_FILE_MSG.format(**locals())
+            )
             _exit()
     else:
         logging.info("Using default program configuration settings:")
         if args.bashcomp or not args.no_log:  # only write when allowed to
-            logging.print(("Writing default program configuration settings "
-                           f"to {config_file}"))
+            logging.print(  # type: ignore
+                ("Writing default program configuration settings to "
+                 f"{config_file}")
+            )
             cfg[secn] = _str_dict(config)
             with open(config_file, 'w') as file:
                 cfg.write(file)
@@ -1306,8 +1320,9 @@ def _check_setting_fmt(setting_str: str) -> str:
     Returns:
         str: Formatted setting
     """
-    with _handle_errors(err_types=AttributeError, msg=INVALID_SETTING_MSG):
-        setting = re.search(f"(^{VALID_INPUT_SETTING}$)", setting_str).group(0)
+    with _handle_errors(err_types=(AttributeError,), msg=INVALID_SETTING_MSG):
+        setting = re.search(f"(^{VALID_INPUT_SETTING}$)",  # type: ignore
+                            setting_str).group(0)
     return setting
 
 
@@ -1322,8 +1337,9 @@ def _check_optn_fmt(optn_str: str) -> Tuple[str, str]:
     """
     check_tag_option_re = re.compile(
         "^({mtag}*)({tag}+)({raw_opt})$".format(**GENERIC_RE_VARS))
-    with _handle_errors(err_types=(AttributeError), msg=INVALID_OPTN_MSG):
-        _, tag, raw_opt = check_tag_option_re.search(optn_str).groups()
+    with _handle_errors(err_types=(AttributeError,), msg=INVALID_OPTN_MSG):
+        _, tag, raw_opt = check_tag_option_re.search(  # type: ignore
+            optn_str).groups()
     literal_tag = ''.join([rf'\{s}' for s in tag])  # read as literal
     return literal_tag, raw_opt
 
@@ -1331,7 +1347,7 @@ def _check_optn_fmt(optn_str: str) -> Tuple[str, str]:
 def _parse_and_check_input(
     args: argparse.Namespace,
     config: Dict
-) -> NamedTuple:
+) -> NTType:
     """Parse input arguments.
 
     Args:
@@ -1339,7 +1355,7 @@ def _parse_and_check_input(
         config (Dict): Configuration settings for optionset
 
     Returns:
-        NamedTuple: Input database
+        NTType: Input database
     """
     InputDb = namedtuple('InputDb',
                          ['tag', 'raw_opt', 'setting', 'f_available',
@@ -1351,13 +1367,14 @@ def _parse_and_check_input(
         #  No setting, available, and showfiles arguments if renaming option
         msg = "Must remove {argStr} argument if renaming an option or setting."
         if args.available:
-            logging.print(msg.format(argStr='available'))
+            logging.print(msg.format(argStr='available'))  # type: ignore
             _exit()
         elif args.showfiles:
-            logging.print(msg.format(argStr='showfiles'))
+            logging.print(msg.format(argStr='showfiles'))  # type: ignore
             _exit()
         elif args.rename_setting and not args.setting:
-            logging.print("Must input a setting if renaming a setting.")
+            logging.print(  # type: ignore
+                "Must input a setting if renaming a setting.")
             _exit()
     else:
         # If no setting is input, default to displaying available options
@@ -1410,7 +1427,7 @@ def optionset(args_arr: Sequence[str]) -> bool:
         return True
 
     if args.version:
-        logging.print(f"{BASENAME} {__version__}")
+        logging.print(f"{BASENAME} {__version__}")  # type: ignore
         return True
 
     # Setup logging
@@ -1446,7 +1463,7 @@ def optionset(args_arr: Sequence[str]) -> bool:
                                    bashcomp_path=bashcomp_path_)
 
     if f_changes_made:
-        logging.print(f"See all modifications in {log_path}")
+        logging.print(f"See all modifications in {log_path}")  # type: ignore
 
     total_prog_time = time() - start_time
     total_prog_time_msg = f"Finished in {total_prog_time:1.5f} s"

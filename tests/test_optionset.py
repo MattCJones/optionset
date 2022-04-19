@@ -481,7 +481,8 @@ INFO:Finished in \d+.\d+ s"""
         re_regression_match = re.compile(log_re_str)
         self.assertTrue(test_regex(re_regression_match, log_str),
                         msg=f"SHOULD MATCH:\n{re_regression_match}\nAND:\n"
-                            f"{log_str}")
+                            f"{log_str}\n\nLOG_PATH={LOG_PATH}\n"
+                            f"RUN_APP={RUN_APP}")
 
     ############################################################
     # Test renaming of options and settings
