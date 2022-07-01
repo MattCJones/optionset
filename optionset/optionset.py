@@ -32,8 +32,6 @@ from pprint import pformat
 from time import time
 from typing import Any, Dict, List, Match, Mapping,\
     NoReturn, Tuple, Sequence, Union, cast
-# from typing import Generic, NamedTuple, Optional, Pattern, TypeVar,\
-#    overload  # unused
 
 __author__ = "Matthew C. Jones"
 __version__ = "22.04.16"
@@ -159,8 +157,8 @@ IGNORE_DIRS = ['.[a-zA-Z0-9]*', '__pycache__', '[0-9]', '[0-9][0-9]*',
                'trash',
                ]  # UNIX-based wild cards
 IGNORE_FILES = [BASENAME, LOG_NAME, BASHCOMP_NAME, CONFIG_NAME, '.*', 'log.*',
-                'log_*', '*.log', '*.pyc', '*.gz', '*.png', '*.jpg', '*.obj',
-                '*.stl', '*.stp', '*.step',
+                'log-*', 'log_*', '*.log', '*.pyc', '*.gz', '*.png', '*.jpg',
+                '*.obj', '*.stl', '*.stp', '*.step',
                 ]  # UNIX-based wild cards
 MAX_FLINES = 9999  # maximum lines per file
 MAX_FSIZE_KB = 10  # maximum file size, kilobytes
