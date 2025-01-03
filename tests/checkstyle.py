@@ -27,8 +27,6 @@ print("="*60)
 print("Running pycodestyle")
 print("="*60)
 check_format("../optionset/optionset.py")
-check_format("runtests.py")
-check_format("timetest.py")
 
 if which('flake8'):
     print("="*60)

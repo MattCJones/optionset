@@ -34,7 +34,7 @@ from typing import Any, Dict, List, Match, Mapping,\
     NoReturn, Tuple, Sequence, Union, cast
 
 __author__ = "Matthew C. Jones"
-__version__ = "22.04.16"
+__version__ = "25.01.03"
 
 __all__ = (
     "optionset",
@@ -156,12 +156,13 @@ IGNORE_DIRS = ['.[a-zA-Z0-9]*', '__pycache__', '[0-9]', '[0-9][0-9]*',
                '[0-9].[0-9]*', 'log', 'logs', 'processor[0-9]*', 'archive',
                'trash',
                ]  # UNIX-based wild cards
-IGNORE_FILES = [BASENAME, LOG_NAME, BASHCOMP_NAME, CONFIG_NAME, '.*', 'log.*',
-                'log-*', 'log_*', '*.log', '*.pyc', '*.gz', '*.png', '*.jpg',
-                '*.obj', '*.stl', '*.stp', '*.step',
+IGNORE_FILES = [BASENAME, LOG_NAME, BASHCOMP_NAME, CONFIG_NAME,
+                f'test_{BASENAME}', '.*', 'log.*', 'log-*', 'log_*', '*.log',
+                '*.pyc', '*.gz', '*.png', '*.jpg', '*.obj', '*.stl', '*.stp',
+                '*.step', '*.szplt', '*.ugrid', '*.flow', '*.out',
                 ]  # UNIX-based wild cards
-MAX_FLINES = 9999  # maximum lines per file
-MAX_FSIZE_KB = 10  # maximum file size, kilobytes
+MAX_FLINES = 1000  # maximum lines per file
+MAX_FSIZE_KB = 100  # maximum file size, kilobytes (approx 10 Kb per 100 lines)
 DEFAULT_CONFIG = {'ignore_dirs': IGNORE_DIRS, 'ignore_files': IGNORE_FILES,
                   'max_flines': MAX_FLINES, 'max_fsize_kb': MAX_FSIZE_KB, }
 
